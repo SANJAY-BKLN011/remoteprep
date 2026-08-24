@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Aptitude & DSA Assessment System</title>
+    <!-- Stylesheets (All local, zero external network dependencies) -->
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+    <!-- Application Top Navigation Bar -->
+    <header class="app-header">
+        <div class="brand-container">
+            <div class="brand-logo">OA</div>
+            <div class="brand-text">
+                <h1>Offline Assessment Portal</h1>
+                <p>College Computer Laboratory Examination System</p>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <div id="header-student-info" class="student-badge-info hidden"></div>
+            <div class="offline-badge" title="Operating in offline lab mode">
+                <span class="offline-dot"></span> Offline Mode
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Application Container (Single-Page Views) -->
+    <main class="app-main">
+
+        <!-- ========================================== -->
+        <!-- PAGE 1: STUDENT DETAILS                    -->
+        <!-- ========================================== -->
+        <section id="page-student" class="page">
+            <div class="center-container">
+                <div class="card auth-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Student Identification</h2>
+                        <p class="card-subtitle">Please enter your candidate credentials to begin the assessment.</p>
+                    </div>
+
+                    <div id="student-error-banner" class="error-banner hidden" role="alert"></div>
+
+                    <form id="form-student-details" novalidate>
+                        <div class="form-group">
+                            <label for="input-student-name" class="form-label">
+                                Student Full Name <span class="required">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="input-student-name" 
+                                class="form-input" 
+                                placeholder="e.g. Alex Johnson"
+                                autocomplete="off"
+                                autofocus
+                            >
+                            <span id="error-student-name" class="field-error-text hidden"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-student-roll" class="form-label">
+                                Roll / Registration Number <span class="required">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="input-student-roll" 
+                                class="form-input" 
+                                placeholder="e.g. 21CS045"
+                                autocomplete="off"
+                            >
+                            <span id="error-student-roll" class="field-error-text hidden"></span>
+                        </div>
+
+                        <div class="info-box">
+                            <strong>Note:</strong> No internet connection or password is required. Your assessment session is localized to this computer.
+                        </div>
+
+                        <button type="submit" id="btn-student-continue" class="btn btn-primary btn-block">
+                            Continue to Topic Selection &rarr;
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PAGE 2: TOPIC SELECTION                    -->
+        <!-- ========================================== -->
+        <section id="page-topics" class="page hidden">
+            <!-- Top bar with Back Button, Title, Subtitle -->
+            <div class="page-top-bar">
+                <div class="page-title-group">
+                    <h2>SELECT TOPICS</h2>
+                    <p>Choose the topics you have prepared for the examination.</p>
+                </div>
+                <button type="button" id="btn-topics-back" class="btn btn-back" title="Return to Student Identification">
+                    &larr; Back
+                </button>
+            </div>
+
+            <!-- Error Banner for Topic Validation Feedback -->
+            <div id="topics-error-banner" class="error-banner hidden" role="alert"></div>
+
+            <!-- SECTION A: APTITUDE -->
+            <div class="topic-section-card">
+                <div class="topic-section-header">
+                    <div class="topic-section-header-left">
+                        <span class="topic-section-title">APTITUDE</span>
+                        <span id="aptitude-count-badge" class="topic-count-badge">0 / 32 Selected</span>
+                    </div>
+                    <label class="toggle-wrapper" for="toggle-all-aptitude" title="Select or Deselect all Aptitude topics">
+                        <span class="toggle-label-text">ALL TOPICS</span>
+                        <input type="checkbox" id="toggle-all-aptitude" class="toggle-input">
+                    </label>
+                </div>
+                <div class="topic-section-body">
+                    <div id="aptitude-categories-container" class="category-grid">
+                        <!-- Populated by topicSelection.js from TopicData -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION B: DSA -->
+            <div class="topic-section-card">
+                <div class="topic-section-header">
+                    <div class="topic-section-header-left">
+                        <span class="topic-section-title">DSA</span>
+                        <span id="dsa-count-badge" class="topic-count-badge">0 / 10 Selected</span>
+                    </div>
+                    <label class="toggle-wrapper" for="toggle-all-dsa" title="Select or Deselect all DSA topics">
+                        <span class="toggle-label-text">ALL TOPICS</span>
+                        <input type="checkbox" id="toggle-all-dsa" class="toggle-input">
+                    </label>
+                </div>
+                <div class="topic-section-body">
+                    <div id="dsa-topics-container">
+                        <!-- Populated by topicSelection.js from TopicData -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Action Bar -->
+            <div class="topic-action-bar">
+                <div id="topics-selection-summary" class="selection-summary">
+                    Selected: <strong>0</strong> Aptitude topics &bull; <strong>0</strong> DSA topics
+                </div>
+                <button type="button" id="btn-topics-continue" class="btn btn-primary">
+                    Continue to Instructions &rarr;
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PAGE 3: INSTRUCTIONS (Placeholder)          -->
+        <!-- ========================================== -->
+        <section id="page-instructions" class="page hidden">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Examination Instructions</h2>
+                </div>
+                <div id="instructions-container">
+                    <p class="card-subtitle">Instructions module will load here in the next step.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PAGE 4: APTITUDE EXAM (Placeholder)         -->
+        <!-- ========================================== -->
+        <section id="page-aptitude" class="page hidden">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Aptitude Assessment</h2>
+                </div>
+                <div id="aptitude-container">
+                    <p class="card-subtitle">Aptitude assessment interface will load here.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PAGE 5: DSA CODING EXAM (Placeholder)       -->
+        <!-- ========================================== -->
+        <section id="page-dsa" class="page hidden">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">DSA Coding Assessment</h2>
+                </div>
+                <div id="dsa-container">
+                    <p class="card-subtitle">DSA coding interface will load here.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PAGE 6: FINAL RESULT (Placeholder)          -->
+        <!-- ========================================== -->
+        <section id="page-result" class="page hidden">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Assessment Results</h2>
+                </div>
+                <div id="result-container">
+                    <p class="card-subtitle">Results summary will load here.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Application Footer -->
+    <footer class="app-footer">
+        Offline Assessment System &bull; College Computer Laboratory Edition
+    </footer>
+
+    <!-- Application Scripts (Modular Vanilla JS, loaded in dependency order) -->
+    <script src="js/topicData.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/validation.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/topicSelection.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
