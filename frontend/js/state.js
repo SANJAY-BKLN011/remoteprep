@@ -4,7 +4,7 @@
  * Holds the single source of truth for the entire offline application session:
  * - Active student profile
  * - Selected topics (Aptitude & DSA)
- * - Exam progress, answers, and timers
+ * - Exam progress, answers, timers, and skipped questions
  * - Final calculated results
  */
 
@@ -23,7 +23,10 @@
         aptitudeExam: {
             questions: [],       // Selected 20 questions
             currentIndex: 0,     // 0 to 19
-            answers: {},         // questionId -> selectedOptionIndex (or null)
+            answers: {},         // questionId -> selectedOptionIndex (0-3)
+            skipped: [],         // Array of questionIds explicitly skipped
+            startTime: null,     // ISO timestamp
+            endTime: null,       // ISO timestamp
             timeRemaining: 1800, // 30 minutes in seconds
             isCompleted: false
         },
@@ -63,7 +66,7 @@
     // State Accessor and Mutator API
     const AppState = {
         /**
-         * Get a read-only snapshot of the current state or specific slice
+         * Get a read-only snapshot of the current state
          */
         getState: function () {
             return state;
@@ -104,6 +107,80 @@
          */
         setInstructionsAccepted: function (accepted) {
             state.instructionsAccepted = Boolean(accepted);
+        },
+
+        /**
+         * Initialize Aptitude exam with generated questions
+         */
+        initAptitudeExam: function (questions) {
+            state.aptitudeExam.questions = [...questions];
+            state.aptitudeExam.currentIndex = 0;
+            state.aptitudeExam.answers = {};
+            state.aptitudeExam.skipped = [];
+            state.aptitudeExam.startTime = new Date().toISOString();
+            state.aptitudeExam.endTime = null;
+            state.aptitudeExam.timeRemaining = 1800; // 30 minutes
+            state.aptitudeExam.isCompleted = false;
+        },
+
+        /**
+         * Record or update answer for a question
+         */
+        setAptitudeAnswer: function (questionId, optionIndex) {
+            state.aptitudeExam.answers[questionId] = optionIndex;
+            // If it was previously marked skipped, remove from skipped list
+            state.aptitudeExam.skipped = state.aptitudeExam.skipped.filter(id => id !== questionId);
+        },
+
+        /**
+         * Mark question as skipped (clears answer if present)
+         */
+        skipAptitudeQuestion: function (questionId) {
+            if (state.aptitudeExam.answers.hasOwnProperty(questionId)) {
+                delete state.aptitudeExam.answers[questionId];
+            }
+            if (!state.aptitudeExam.skipped.includes(questionId)) {
+                state.aptitudeExam.skipped.push(questionId);
+            }
+        },
+
+        /**
+         * Update active question index
+         */
+        setAptitudeCurrentIndex: function (index) {
+            if (index >= 0 && index < state.aptitudeExam.questions.length) {
+                state.aptitudeExam.currentIndex = index;
+            }
+        },
+
+        /**
+         * Update remaining time in seconds
+         */
+        setAptitudeTimeRemaining: function (seconds) {
+            state.aptitudeExam.timeRemaining = Math.max(0, seconds);
+        },
+
+        /**
+         * Finalize Aptitude examination and save score results
+         */
+        completeAptitudeExam: function (results) {
+            state.aptitudeExam.isCompleted = true;
+            state.aptitudeExam.endTime = new Date().toISOString();
+            state.results.aptitude = { ...results };
+        },
+
+        /**
+         * Get Aptitude exam state slice
+         */
+        getAptitudeExam: function () {
+            return state.aptitudeExam;
+        },
+
+        /**
+         * Get Aptitude results
+         */
+        getAptitudeResults: function () {
+            return state.results.aptitude;
         },
 
         /**

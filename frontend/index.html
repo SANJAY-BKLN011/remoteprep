@@ -158,7 +158,6 @@
         <!-- PAGE 3: RULES AND INSTRUCTIONS             -->
         <!-- ========================================== -->
         <section id="page-instructions" class="page hidden">
-            <!-- Top bar with Title and Subtitle -->
             <div class="page-top-bar">
                 <div class="page-title-group">
                     <h2>RULES AND INSTRUCTIONS</h2>
@@ -166,16 +165,11 @@
                 </div>
             </div>
 
-            <!-- Main Instruction Container -->
             <div class="instructions-main-card">
-                <!-- Scrollable Instruction Box -->
                 <div class="instructions-scroll-box" tabindex="0" role="region" aria-label="Examination rules and instructions">
-                    
                     <!-- SECTION 1: GENERAL INSTRUCTIONS -->
                     <div class="instruction-section">
-                        <h3 class="instruction-section-title">
-                            <span>1. GENERAL INSTRUCTIONS</span>
-                        </h3>
+                        <h3 class="instruction-section-title">1. GENERAL INSTRUCTIONS</h3>
                         <ol class="rule-list">
                             <li>This is an offline examination system. No Internet connection is required.</li>
                             <li>Make sure you have selected the topics you have prepared before starting the examination.</li>
@@ -192,9 +186,7 @@
 
                     <!-- SECTION 2: APTITUDE SECTION -->
                     <div class="instruction-section">
-                        <h3 class="instruction-section-title">
-                            <span>2. APTITUDE SECTION</span>
-                        </h3>
+                        <h3 class="instruction-section-title">2. APTITUDE SECTION</h3>
                         <ol class="rule-list">
                             <li>The Aptitude section contains exactly <strong>20 questions</strong>.</li>
                             <li>The total time available for the Aptitude section is <strong>30 minutes</strong>.</li>
@@ -218,9 +210,7 @@
 
                     <!-- SECTION 3: DSA PROGRAMMING SECTION -->
                     <div class="instruction-section">
-                        <h3 class="instruction-section-title">
-                            <span>3. DSA PROGRAMMING SECTION</span>
-                        </h3>
+                        <h3 class="instruction-section-title">3. DSA PROGRAMMING SECTION</h3>
                         <ol class="rule-list">
                             <li>The DSA section contains exactly <strong>2 programming problems</strong>.</li>
                             <li>One problem will be <strong>Easy</strong> difficulty.</li>
@@ -248,9 +238,7 @@
 
                     <!-- SECTION 4: CODE EXECUTION RULES -->
                     <div class="instruction-section">
-                        <h3 class="instruction-section-title">
-                            <span>4. CODE EXECUTION RULES</span>
-                        </h3>
+                        <h3 class="instruction-section-title">4. CODE EXECUTION RULES</h3>
                         <div class="execution-cards-grid">
                             <div class="execution-rule-card">
                                 <div class="execution-rule-title">Run</div>
@@ -275,22 +263,17 @@
 
                     <!-- SECTION 5: IMPORTANT -->
                     <div class="instruction-section">
-                        <h3 class="instruction-section-title">
-                            <span>5. IMPORTANT NOTICE</span>
-                        </h3>
+                        <h3 class="instruction-section-title">5. IMPORTANT NOTICE</h3>
                         <div class="warning-callout">
-                            <div class="warning-callout-text">
-                                &#9888; Warning: Examination Session Integrity
-                            </div>
+                            <div class="warning-callout-text">&#9888; Warning: Examination Session Integrity</div>
                             <p class="warning-callout-sub">
                                 Once the examination begins, do not close the application or restart the computer. Doing so may interrupt the examination session. Make sure you are ready before clicking Start Examination.
                             </p>
                         </div>
                     </div>
-
                 </div>
 
-                <!-- ACCEPTANCE CONTROL -->
+                <!-- Acceptance Control -->
                 <div id="acceptance-panel" class="acceptance-panel">
                     <label class="acceptance-label" for="chk-accept-instructions">
                         <input type="checkbox" id="chk-accept-instructions" class="acceptance-checkbox">
@@ -299,7 +282,6 @@
                 </div>
             </div>
 
-            <!-- BOTTOM NAVIGATION -->
             <div class="instructions-action-bar">
                 <button type="button" id="btn-instructions-previous" class="btn btn-secondary">
                     &larr; Previous
@@ -311,15 +293,118 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- PAGE 4: APTITUDE EXAM (Placeholder)         -->
+        <!-- PAGE 4: APTITUDE EXAM                      -->
         <!-- ========================================== -->
         <section id="page-aptitude" class="page hidden">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Aptitude Assessment</h2>
+            <!-- Top Exam Bar with Question Count and Timer -->
+            <div class="exam-top-bar">
+                <div class="exam-title-badge">
+                    <span>APTITUDE ASSESSMENT</span>
+                    <span id="apt-answered-badge" class="exam-counter-pill">Answered: 0 / 20</span>
                 </div>
-                <div id="aptitude-container">
-                    <p class="card-subtitle">Aptitude assessment interface will load here.</p>
+                <div id="apt-timer-badge" class="timer-badge timer-normal">
+                    <span class="timer-label-small">Time Remaining:</span>
+                    <span id="apt-timer-display">30:00</span>
+                </div>
+            </div>
+
+            <!-- Error Banner (if generation error occurs) -->
+            <div id="apt-error-banner" class="error-banner hidden" role="alert"></div>
+
+            <!-- Exam Layout: Question Box (Left) + Palette (Right) -->
+            <div class="exam-layout-grid">
+                <!-- Left: Question & Options Area -->
+                <div class="exam-main-column">
+                    <div class="exam-question-card">
+                        <div class="question-header-row">
+                            <h3 id="apt-question-header" class="question-number-title">Question 1 of 20</h3>
+                            <span class="question-status-badge">Single Choice</span>
+                        </div>
+
+                        <div id="apt-question-text" class="question-text">
+                            Loading question text...
+                        </div>
+
+                        <div id="apt-options-container" class="options-list">
+                            <!-- 4 MCQ Options rendered by aptitude.js -->
+                        </div>
+                    </div>
+
+                    <!-- Navigation Action Bar -->
+                    <div class="exam-action-bar">
+                        <button type="button" id="btn-apt-prev" class="btn btn-secondary" disabled>
+                            &larr; Previous
+                        </button>
+                        <div class="action-bar-right">
+                            <button type="button" id="btn-apt-skip" class="btn btn-skip">
+                                Skip
+                            </button>
+                            <button type="button" id="btn-apt-next" class="btn btn-primary">
+                                Next &rarr;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Question Palette / Navigation Grid -->
+                <aside class="palette-card">
+                    <h4 class="palette-card-title">Question Palette</h4>
+                    <div id="apt-palette-grid" class="palette-grid">
+                        <!-- 1-20 Question status items rendered by aptitude.js -->
+                    </div>
+
+                    <div class="palette-legend">
+                        <div class="legend-item">
+                            <span class="legend-box box-current"></span>
+                            <span>Current</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-box box-answered"></span>
+                            <span>Answered</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-box box-skipped"></span>
+                            <span>Skipped</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-box box-unanswered"></span>
+                            <span>Unanswered</span>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <!-- Confirmation Modal for Submitting Aptitude -->
+            <div id="modal-finish-confirm" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Confirm Aptitude Submission</h3>
+                    </div>
+                    <p style="font-size: 0.9375rem; color: var(--color-text-main);">
+                        Are you sure you want to finish the Aptitude examination section?
+                    </p>
+                    <div class="modal-stats-list">
+                        <div>
+                            <div id="modal-stat-answered" class="modal-stat-val">0</div>
+                            <div class="modal-stat-lbl">Answered</div>
+                        </div>
+                        <div>
+                            <div id="modal-stat-unanswered" class="modal-stat-val">20</div>
+                            <div class="modal-stat-lbl">Unanswered</div>
+                        </div>
+                        <div>
+                            <div id="modal-stat-skipped" class="modal-stat-val">0</div>
+                            <div class="modal-stat-lbl">Skipped</div>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="btn-modal-cancel" class="btn btn-secondary">
+                            Continue Exam
+                        </button>
+                        <button type="button" id="btn-modal-confirm" class="btn btn-primary">
+                            Finish Aptitude
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -359,13 +444,16 @@
         Offline Assessment System &bull; College Computer Laboratory Edition
     </footer>
 
-    <!-- Application Scripts (Modular Vanilla JS, loaded in dependency order) -->
+    <!-- Application Scripts (Modular Vanilla JS, loaded in strict dependency order) -->
     <script src="js/topicData.js"></script>
+    <script src="js/mockQuestions.js"></script>
     <script src="js/state.js"></script>
+    <script src="js/timer.js"></script>
     <script src="js/validation.js"></script>
     <script src="js/navigation.js"></script>
     <script src="js/topicSelection.js"></script>
     <script src="js/instructions.js"></script>
+    <script src="js/aptitude.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

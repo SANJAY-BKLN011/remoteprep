@@ -111,8 +111,10 @@
             window.AppState.setInstructionsAccepted(true);
         }
 
-        // Navigate to Page 4 (Aptitude Examination)
-        if (window.Navigation && typeof window.Navigation.navigateTo === 'function') {
+        // Start Aptitude Examination (generates questions, initializes exam state, starts timer, navigates to Page 4)
+        if (window.Aptitude && typeof window.Aptitude.startExam === 'function') {
+            window.Aptitude.startExam();
+        } else if (window.Navigation && typeof window.Navigation.navigateTo === 'function') {
             window.Navigation.navigateTo('page-aptitude');
         }
     }

@@ -29,6 +29,10 @@
         if (window.Instructions && typeof window.Instructions.init === 'function') {
             window.Instructions.init();
         }
+        // Initialize Aptitude Assessment component
+        if (window.Aptitude && typeof window.Aptitude.init === 'function') {
+            window.Aptitude.init();
+        }
         // Start on Page 1 (Student Details)
         window.Navigation.navigateTo('page-student');
     }
