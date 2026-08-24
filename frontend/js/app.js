@@ -25,6 +25,10 @@
         if (window.TopicSelection && typeof window.TopicSelection.init === 'function') {
             window.TopicSelection.init();
         }
+        // Initialize Rules & Instructions component
+        if (window.Instructions && typeof window.Instructions.init === 'function') {
+            window.Instructions.init();
+        }
         // Start on Page 1 (Student Details)
         window.Navigation.navigateTo('page-student');
     }

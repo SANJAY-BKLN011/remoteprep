@@ -155,16 +155,158 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- PAGE 3: INSTRUCTIONS (Placeholder)          -->
+        <!-- PAGE 3: RULES AND INSTRUCTIONS             -->
         <!-- ========================================== -->
         <section id="page-instructions" class="page hidden">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Examination Instructions</h2>
+            <!-- Top bar with Title and Subtitle -->
+            <div class="page-top-bar">
+                <div class="page-title-group">
+                    <h2>RULES AND INSTRUCTIONS</h2>
+                    <p>Please read all instructions carefully before starting the examination.</p>
                 </div>
-                <div id="instructions-container">
-                    <p class="card-subtitle">Instructions module will load here in the next step.</p>
+            </div>
+
+            <!-- Main Instruction Container -->
+            <div class="instructions-main-card">
+                <!-- Scrollable Instruction Box -->
+                <div class="instructions-scroll-box" tabindex="0" role="region" aria-label="Examination rules and instructions">
+                    
+                    <!-- SECTION 1: GENERAL INSTRUCTIONS -->
+                    <div class="instruction-section">
+                        <h3 class="instruction-section-title">
+                            <span>1. GENERAL INSTRUCTIONS</span>
+                        </h3>
+                        <ol class="rule-list">
+                            <li>This is an offline examination system. No Internet connection is required.</li>
+                            <li>Make sure you have selected the topics you have prepared before starting the examination.</li>
+                            <li>Once the examination begins, the selected topics cannot be changed.</li>
+                            <li>Do not close the application or browser during the examination.</li>
+                            <li>Your name, roll number, selected topics, answers, code submissions and examination results will be recorded.</li>
+                            <li>Questions are selected randomly from the available question database.</li>
+                            <li>Questions may be repeated for different students because each computer operates independently.</li>
+                            <li>You may skip a question and return to it later where navigation is available.</li>
+                            <li>The examination will automatically proceed/finish when the relevant section's timer expires.</li>
+                            <li>Follow the examination instructions carefully.</li>
+                        </ol>
+                    </div>
+
+                    <!-- SECTION 2: APTITUDE SECTION -->
+                    <div class="instruction-section">
+                        <h3 class="instruction-section-title">
+                            <span>2. APTITUDE SECTION</span>
+                        </h3>
+                        <ol class="rule-list">
+                            <li>The Aptitude section contains exactly <strong>20 questions</strong>.</li>
+                            <li>The total time available for the Aptitude section is <strong>30 minutes</strong>.</li>
+                            <li>Questions are randomly selected based on the Aptitude topics chosen by the student.</li>
+                            <li>Each question has multiple-choice options.</li>
+                            <li>Select the option you believe is correct.</li>
+                            <li>You may skip a question.</li>
+                            <li>Skipped questions can be revisited before the Aptitude timer expires.</li>
+                            <li>The system records:
+                                <ul class="sub-rules-list">
+                                    <li>Attempted questions</li>
+                                    <li>Correct answers</li>
+                                    <li>Wrong answers</li>
+                                    <li>Skipped questions</li>
+                                </ul>
+                            </li>
+                            <li>When the 30-minute timer reaches zero, the Aptitude section will automatically end.</li>
+                            <li>The Aptitude result will be calculated after submission/section completion.</li>
+                        </ol>
+                    </div>
+
+                    <!-- SECTION 3: DSA PROGRAMMING SECTION -->
+                    <div class="instruction-section">
+                        <h3 class="instruction-section-title">
+                            <span>3. DSA PROGRAMMING SECTION</span>
+                        </h3>
+                        <ol class="rule-list">
+                            <li>The DSA section contains exactly <strong>2 programming problems</strong>.</li>
+                            <li>One problem will be <strong>Easy</strong> difficulty.</li>
+                            <li>One problem will be <strong>Medium</strong> difficulty.</li>
+                            <li>Problems are randomly selected from the DSA topics chosen by the student.</li>
+                            <li>The Easy problem has a time limit of <strong>25 minutes</strong>.</li>
+                            <li>The Medium problem has a time limit of <strong>30 minutes</strong>.</li>
+                            <li><strong>Java</strong> is the supported programming language.</li>
+                            <li>Each problem provides:
+                                <ul class="sub-rules-list">
+                                    <li>Problem statement</li>
+                                    <li>Examples</li>
+                                    <li>Constraints</li>
+                                    <li>Starter code</li>
+                                </ul>
+                            </li>
+                            <li>You may modify the provided starter code.</li>
+                            <li>Use the <strong>Run</strong> button to test your program against the provided sample test cases.</li>
+                            <li>Use the <strong>Reset</strong> button to restore the original starter code.</li>
+                            <li>Use the <strong>Submit</strong> button to submit your final solution.</li>
+                            <li>Submission will eventually be checked against all test cases.</li>
+                            <li>The final DSA result will record the verdict and test cases passed.</li>
+                        </ol>
+                    </div>
+
+                    <!-- SECTION 4: CODE EXECUTION RULES -->
+                    <div class="instruction-section">
+                        <h3 class="instruction-section-title">
+                            <span>4. CODE EXECUTION RULES</span>
+                        </h3>
+                        <div class="execution-cards-grid">
+                            <div class="execution-rule-card">
+                                <div class="execution-rule-title">Run</div>
+                                <p>Executes the current code against the available sample test cases. Shows standard output or compilation/runtime errors.</p>
+                            </div>
+                            <div class="execution-rule-card">
+                                <div class="execution-rule-title">Reset</div>
+                                <p>Removes all changes made by the student and restores the original starter code provided with the problem.</p>
+                            </div>
+                            <div class="execution-rule-card">
+                                <div class="execution-rule-title">Submit</div>
+                                <p>Checks the submitted program against all hidden test cases. Evaluates final verdict:</p>
+                                <div class="verdicts-badge-group">
+                                    <span class="verdict-tag tag-accepted">Accepted</span>
+                                    <span class="verdict-tag tag-wrong">Wrong Answer</span>
+                                    <span class="verdict-tag tag-compile">Compilation Error</span>
+                                    <span class="verdict-tag tag-runtime">Runtime Error</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 5: IMPORTANT -->
+                    <div class="instruction-section">
+                        <h3 class="instruction-section-title">
+                            <span>5. IMPORTANT NOTICE</span>
+                        </h3>
+                        <div class="warning-callout">
+                            <div class="warning-callout-text">
+                                &#9888; Warning: Examination Session Integrity
+                            </div>
+                            <p class="warning-callout-sub">
+                                Once the examination begins, do not close the application or restart the computer. Doing so may interrupt the examination session. Make sure you are ready before clicking Start Examination.
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
+
+                <!-- ACCEPTANCE CONTROL -->
+                <div id="acceptance-panel" class="acceptance-panel">
+                    <label class="acceptance-label" for="chk-accept-instructions">
+                        <input type="checkbox" id="chk-accept-instructions" class="acceptance-checkbox">
+                        <span>I have read and understood all the rules and instructions.</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- BOTTOM NAVIGATION -->
+            <div class="instructions-action-bar">
+                <button type="button" id="btn-instructions-previous" class="btn btn-secondary">
+                    &larr; Previous
+                </button>
+                <button type="button" id="btn-instructions-start" class="btn btn-primary" disabled>
+                    Start Examination &rarr;
+                </button>
             </div>
         </section>
 
@@ -223,6 +365,7 @@
     <script src="js/validation.js"></script>
     <script src="js/navigation.js"></script>
     <script src="js/topicSelection.js"></script>
+    <script src="js/instructions.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
