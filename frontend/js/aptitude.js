@@ -502,11 +502,25 @@
                     </div>
                 </div>
                 <div class="info-box" style="margin-top: 1.5rem;">
-                    <strong>Next Stage:</strong> DSA Coding Assessment (1 Easy Problem &bull; 1 Medium Problem).<br>
-                    <em>Note: The DSA Coding interface will be implemented in the next phase.</em>
+                    <strong>Next Stage:</strong> DSA Programming Assessment (2 Problems: 1 Easy [25 mins], 1 Medium [30 mins]).<br>
+                    Make sure you are ready before clicking below to start the DSA timer.
+                </div>
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button type="button" id="btn-start-dsa-exam" class="btn btn-primary">
+                        Start DSA Assessment &rarr;
+                    </button>
                 </div>
             </div>
         `;
+
+        const btnStartDsa = document.getElementById('btn-start-dsa-exam');
+        if (btnStartDsa) {
+            btnStartDsa.addEventListener('click', () => {
+                if (window.Dsa) {
+                    window.Dsa.startExam();
+                }
+            });
+        }
     }
 
     /**

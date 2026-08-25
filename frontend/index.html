@@ -410,17 +410,139 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- PAGE 5: DSA CODING EXAM (Placeholder)       -->
+        <!-- PAGE 5: DSA CODING EXAM                    -->
         <!-- ========================================== -->
         <section id="page-dsa" class="page hidden">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">DSA Coding Assessment</h2>
+            <!-- DSA Top Exam Bar -->
+            <div class="dsa-top-bar">
+                <div class="dsa-top-left">
+                    <div class="dsa-pills-group" id="dsa-status-pills">
+                        <!-- Problem 1 & Problem 2 status pills -->
+                    </div>
+                    <span id="dsa-problem-number" class="problem-num-badge">Problem #1 of 2</span>
                 </div>
-                <div id="dsa-container">
-                    <p class="card-subtitle">DSA coding interface will load here.</p>
+                <div id="dsa-timer-badge" class="timer-badge timer-normal">
+                    <span class="timer-label-small">Time Remaining:</span>
+                    <span id="dsa-timer-display">25:00</span>
                 </div>
             </div>
+
+            <!-- Two-Column Problem and Code Layout -->
+            <div class="dsa-layout-grid">
+                <!-- Left Column: Problem Panel -->
+                <div class="dsa-problem-panel">
+                    <div class="problem-header-meta">
+                        <div class="problem-meta-left">
+                            <span id="dsa-difficulty-badge" class="difficulty-badge diff-easy">EASY</span>
+                            <span id="dsa-topic-badge" class="topic-tag-badge">Arrays</span>
+                        </div>
+                    </div>
+
+                    <h3 id="dsa-problem-title" class="dsa-title-text">Two Sum</h3>
+
+                    <div id="dsa-problem-desc" class="dsa-description-box">
+                        <!-- Problem description paragraphs -->
+                    </div>
+
+                    <div>
+                        <h4 style="font-size: 0.875rem; font-weight: 800; color: var(--color-primary-dark); margin-bottom: 8px;">Examples</h4>
+                        <div id="dsa-problem-examples">
+                            <!-- Example cards -->
+                        </div>
+                    </div>
+
+                    <div class="constraints-box">
+                        <div class="constraints-title">Constraints:</div>
+                        <ul id="dsa-problem-constraints" class="constraints-list">
+                            <!-- Constraints list -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Right Column: Code Editor & Execution Console -->
+                <div class="dsa-editor-panel">
+                    <!-- Editor Header -->
+                    <div class="editor-header-bar">
+                        <span>Language: <strong class="lang-badge">Java (JDK 17)</strong></span>
+                        <span style="font-size: 0.75rem; color: #B0BEC5;">Tab indentation &bull; Monospace Editor</span>
+                    </div>
+
+                    <!-- Code Textarea Editor -->
+                    <div class="editor-wrapper">
+                        <textarea 
+                            id="dsa-code-editor" 
+                            class="dsa-code-textarea" 
+                            spellcheck="false" 
+                            autocomplete="off" 
+                            autocapitalize="off"
+                            placeholder="// Write your Java solution here..."
+                        ></textarea>
+                    </div>
+
+                    <!-- Action Controls Bar -->
+                    <div class="dsa-action-bar">
+                        <button type="button" id="btn-dsa-prev" class="btn btn-secondary btn-sm" disabled>
+                            &larr; Previous
+                        </button>
+                        <div class="dsa-action-group">
+                            <button type="button" id="btn-dsa-reset" class="btn btn-secondary btn-sm" title="Restore original starter code">
+                                Reset
+                            </button>
+                            <button type="button" id="btn-dsa-skip" class="btn btn-skip btn-sm">
+                                Skip
+                            </button>
+                            <button type="button" id="btn-dsa-run" class="btn btn-code-run btn-sm">
+                                Run Sample Tests &#9654;
+                            </button>
+                            <button type="button" id="btn-dsa-submit" class="btn btn-primary btn-sm">
+                                Submit Solution
+                            </button>
+                        </div>
+                        <button type="button" id="btn-dsa-next" class="btn btn-primary btn-sm">
+                            Next Problem &rarr;
+                        </button>
+                    </div>
+
+                    <!-- Console & Output Panel -->
+                    <div class="dsa-console-card">
+                        <div class="console-card-header">
+                            <span>Console &bull; Test Execution Output</span>
+                        </div>
+                        <div id="dsa-console-output" class="dsa-console-log">
+                            Run your code to see the output.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DSA Solution Submission Confirmation Modal -->
+            <div id="modal-dsa-submit" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Confirm Solution Submission</h3>
+                    </div>
+                    <p style="font-size: 0.9375rem; color: var(--color-text-main); margin-bottom: 0.75rem;">
+                        Are you sure you want to submit your solution for:
+                    </p>
+                    <div id="modal-dsa-problem-title" style="font-weight: 800; color: var(--color-primary-dark); margin-bottom: 1rem;">
+                        Problem #1: Two Sum (EASY)
+                    </div>
+                    <p style="font-size: 0.8125rem; color: var(--color-text-muted);">
+                        Your program will be evaluated against all test cases. You can continue editing until the problem timer expires.
+                    </p>
+                    <div class="modal-actions">
+                        <button type="button" id="btn-modal-dsa-cancel" class="btn btn-secondary">
+                            Cancel
+                        </button>
+                        <button type="button" id="btn-modal-dsa-confirm" class="btn btn-primary">
+                            Submit Solution
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transition container when reached from Aptitude finish -->
+            <div id="dsa-container" class="hidden"></div>
         </section>
 
         <!-- ========================================== -->
@@ -429,7 +551,7 @@
         <section id="page-result" class="page hidden">
             <div class="card">
                 <div class="card-header">
-                    <h2 class="card-title">Assessment Results</h2>
+                    <h2 class="card-title">Assessment Summary</h2>
                 </div>
                 <div id="result-container">
                     <p class="card-subtitle">Results summary will load here.</p>
@@ -447,6 +569,8 @@
     <!-- Application Scripts (Modular Vanilla JS, loaded in strict dependency order) -->
     <script src="js/topicData.js"></script>
     <script src="js/mockQuestions.js"></script>
+    <script src="js/mockDsaQuestions.js"></script>
+    <script src="js/mockCodeRunner.js"></script>
     <script src="js/state.js"></script>
     <script src="js/timer.js"></script>
     <script src="js/validation.js"></script>
@@ -454,6 +578,7 @@
     <script src="js/topicSelection.js"></script>
     <script src="js/instructions.js"></script>
     <script src="js/aptitude.js"></script>
+    <script src="js/dsa.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

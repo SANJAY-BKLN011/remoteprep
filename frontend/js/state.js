@@ -4,7 +4,7 @@
  * Holds the single source of truth for the entire offline application session:
  * - Active student profile
  * - Selected topics (Aptitude & DSA)
- * - Exam progress, answers, timers, and skipped questions
+ * - Exam progress, answers, timers, code submissions, and skipped questions
  * - Final calculated results
  */
 
@@ -31,21 +31,17 @@
             isCompleted: false
         },
         dsaExam: {
-            easyProblem: null,
-            mediumProblem: null,
-            currentProblemIndex: 0, // 0 for Easy, 1 for Medium
-            code: {
-                easy: '',
-                medium: ''
-            },
-            submissions: {
-                easy: null,
-                medium: null
-            },
+            questions: [],          // Array of 2 questions: [easyQuestion, mediumQuestion]
+            currentIndex: 0,        // 0 for Easy (Problem 1), 1 for Medium (Problem 2)
+            code: {},               // questionId -> string (candidate's code)
+            submissions: {},        // questionId -> { verdict, testCasesPassed, totalTestCases, details, timestamp }
+            skipped: [],            // Array of skipped questionIds
             timeRemaining: {
-                easy: 1500,   // 25 minutes in seconds
-                medium: 1800  // 30 minutes in seconds
+                easy: 1500,         // 25 minutes in seconds
+                medium: 1800        // 30 minutes in seconds
             },
+            startTime: null,
+            endTime: null,
             isCompleted: false
         },
         results: {
@@ -109,6 +105,10 @@
             state.instructionsAccepted = Boolean(accepted);
         },
 
+        // ==========================================
+        // APTITUDE EXAM STATE METHODS
+        // ==========================================
+
         /**
          * Initialize Aptitude exam with generated questions
          */
@@ -128,7 +128,6 @@
          */
         setAptitudeAnswer: function (questionId, optionIndex) {
             state.aptitudeExam.answers[questionId] = optionIndex;
-            // If it was previously marked skipped, remove from skipped list
             state.aptitudeExam.skipped = state.aptitudeExam.skipped.filter(id => id !== questionId);
         },
 
@@ -181,6 +180,108 @@
          */
         getAptitudeResults: function () {
             return state.results.aptitude;
+        },
+
+        // ==========================================
+        // DSA EXAM STATE METHODS
+        // ==========================================
+
+        /**
+         * Initialize DSA exam with 2 selected problems [Easy, Medium]
+         */
+        initDsaExam: function (questions) {
+            state.dsaExam.questions = [...questions];
+            state.dsaExam.currentIndex = 0;
+            state.dsaExam.code = {};
+            state.dsaExam.submissions = {};
+            state.dsaExam.skipped = [];
+            state.dsaExam.timeRemaining = {
+                easy: 1500,   // 25 minutes
+                medium: 1800  // 30 minutes
+            };
+            state.dsaExam.startTime = new Date().toISOString();
+            state.dsaExam.endTime = null;
+            state.dsaExam.isCompleted = false;
+
+            // Pre-populate initial starter code
+            questions.forEach(q => {
+                state.dsaExam.code[q.id] = (q.starterCode && q.starterCode.java) ? q.starterCode.java : '';
+            });
+        },
+
+        /**
+         * Save candidate code for a problem ID
+         */
+        setDsaCode: function (questionId, code) {
+            state.dsaExam.code[questionId] = code;
+        },
+
+        /**
+         * Retrieve candidate code for a problem ID
+         */
+        getDsaCode: function (questionId) {
+            return state.dsaExam.code[questionId] || '';
+        },
+
+        /**
+         * Set active problem index (0 for Easy, 1 for Medium)
+         */
+        setDsaCurrentIndex: function (index) {
+            if (index === 0 || index === 1) {
+                state.dsaExam.currentIndex = index;
+            }
+        },
+
+        /**
+         * Skip current DSA problem
+         */
+        skipDsaQuestion: function (questionId) {
+            if (!state.dsaExam.skipped.includes(questionId)) {
+                state.dsaExam.skipped.push(questionId);
+            }
+        },
+
+        /**
+         * Record submission result for a DSA problem
+         */
+        recordDsaSubmission: function (questionId, submissionResult) {
+            state.dsaExam.submissions[questionId] = {
+                ...submissionResult,
+                timestamp: new Date().toISOString()
+            };
+            state.dsaExam.skipped = state.dsaExam.skipped.filter(id => id !== questionId);
+        },
+
+        /**
+         * Update remaining time for Easy or Medium problem
+         */
+        setDsaTimeRemaining: function (difficulty, seconds) {
+            if (state.dsaExam.timeRemaining.hasOwnProperty(difficulty)) {
+                state.dsaExam.timeRemaining[difficulty] = Math.max(0, seconds);
+            }
+        },
+
+        /**
+         * Finalize DSA examination and save score results
+         */
+        completeDsaExam: function (results) {
+            state.dsaExam.isCompleted = true;
+            state.dsaExam.endTime = new Date().toISOString();
+            state.results.dsa = { ...results };
+        },
+
+        /**
+         * Get DSA exam state slice
+         */
+        getDsaExam: function () {
+            return state.dsaExam;
+        },
+
+        /**
+         * Get DSA results
+         */
+        getDsaResults: function () {
+            return state.results.dsa;
         },
 
         /**

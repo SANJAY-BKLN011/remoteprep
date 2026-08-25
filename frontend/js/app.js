@@ -33,6 +33,10 @@
         if (window.Aptitude && typeof window.Aptitude.init === 'function') {
             window.Aptitude.init();
         }
+        // Initialize DSA Assessment component
+        if (window.Dsa && typeof window.Dsa.init === 'function') {
+            window.Dsa.init();
+        }
         // Start on Page 1 (Student Details)
         window.Navigation.navigateTo('page-student');
     }
