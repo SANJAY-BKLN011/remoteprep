@@ -137,30 +137,50 @@
     }
 
     /**
-     * Generates 2 DSA questions: 1 Easy and 1 Medium from candidate's selected topics
+     * Generates 2 DSA questions: 1 Easy and 1 Medium STRICTLY from candidate's selected topics.
+     * Never falls back to unselected topics.
      * @param {Array<string>} selectedTopicIds 
-     * @returns {Array|null} Array of 2 question objects [easyQuestion, mediumQuestion]
+     * @returns {Object} { success: boolean, questions?: Array, error?: string }
      */
     function selectDsaQuestions(selectedTopicIds) {
         if (!Array.isArray(selectedTopicIds) || selectedTopicIds.length === 0) {
-            return null;
+            return {
+                success: false,
+                error: 'Unable to generate the DSA examination because no DSA topics were selected.'
+            };
         }
 
         const allQuestions = window.MockDsaQuestions ? window.MockDsaQuestions.getAllQuestions() : [];
 
-        // 1. Pick 1 Easy Problem from selected topics
-        const easyPool = allQuestions.filter(q => selectedTopicIds.includes(q.topicId) && q.difficulty === 'easy');
-        const easyCandidatePool = easyPool.length > 0 ? easyPool : allQuestions.filter(q => q.difficulty === 'easy');
-        const shuffledEasy = shuffleArray(easyCandidatePool);
+        // 1. Filter questions strictly belonging to the candidate's selected topics
+        const selectedTopicQuestions = allQuestions.filter(q => selectedTopicIds.includes(q.topicId));
+
+        // 2. Pick 1 Easy Problem strictly from selected topics
+        const easyPool = selectedTopicQuestions.filter(q => q.difficulty === 'easy');
+        if (!easyPool || easyPool.length === 0) {
+            return {
+                success: false,
+                error: 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.'
+            };
+        }
+        const shuffledEasy = shuffleArray(easyPool);
         const easyQuestion = shuffledEasy[0];
 
-        // 2. Pick 1 Medium Problem from selected topics (ensuring distinct ID)
-        const mediumPool = allQuestions.filter(q => selectedTopicIds.includes(q.topicId) && q.difficulty === 'medium' && q.id !== easyQuestion.id);
-        const mediumCandidatePool = mediumPool.length > 0 ? mediumPool : allQuestions.filter(q => q.difficulty === 'medium' && q.id !== easyQuestion.id);
-        const shuffledMedium = shuffleArray(mediumCandidatePool);
+        // 3. Pick 1 Medium Problem strictly from selected topics (ensuring distinct question ID)
+        const mediumPool = selectedTopicQuestions.filter(q => q.difficulty === 'medium' && q.id !== easyQuestion.id);
+        if (!mediumPool || mediumPool.length === 0) {
+            return {
+                success: false,
+                error: 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.'
+            };
+        }
+        const shuffledMedium = shuffleArray(mediumPool);
         const mediumQuestion = shuffledMedium[0];
 
-        return [easyQuestion, mediumQuestion];
+        return {
+            success: true,
+            questions: [easyQuestion, mediumQuestion]
+        };
     }
 
     /**
@@ -168,12 +188,14 @@
      */
     function startExam() {
         const selectedTopics = window.AppState ? window.AppState.getSelectedTopics().dsa : [];
-        const questions = selectDsaQuestions(selectedTopics);
+        const result = selectDsaQuestions(selectedTopics);
 
-        if (!questions || questions.length !== 2) {
-            alert('Unable to generate DSA assessment questions. Please ensure valid topics are selected.');
+        if (!result.success || !result.questions || result.questions.length !== 2) {
+            alert(result.error || 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.');
             return false;
         }
+
+        const questions = result.questions;
 
         // 1. Initialize DSA state in AppState
         window.AppState.initDsaExam(questions);
@@ -185,7 +207,8 @@
         renderProblem();
 
         // 4. Start Easy Timer (25 minutes = 1500 seconds)
-        startProblemTimer(1500);
+        const initialEasyTime = 1500;
+        startProblemTimer(initialEasyTime);
 
         return true;
     }
@@ -202,7 +225,7 @@
     }
 
     /**
-     * Timer tick handler
+     * Timer tick handler - updates UI and persists remaining seconds to AppState
      */
     function handleTimerTick(formattedTime, remainingSeconds, warningLevel) {
         if (timerDisplay) {
@@ -228,9 +251,11 @@
         if (!exam) return;
 
         if (exam.currentIndex === 0) {
+            window.AppState.setDsaTimeRemaining('easy', 0);
             alert('Time limit for Problem 1 (Easy - 25 mins) has expired! Moving automatically to Problem 2 (Medium).');
             switchToProblem(1);
         } else {
+            window.AppState.setDsaTimeRemaining('medium', 0);
             alert('Time limit for Problem 2 (Medium - 30 mins) has expired! Finalizing DSA assessment.');
             finishExam(true);
         }
@@ -398,9 +423,19 @@
         // Render target problem
         renderProblem();
 
-        // Start appropriate timer: 1500s for Easy (idx 0), 1800s for Medium (idx 1)
-        const duration = newIndex === 0 ? 1500 : 1800;
-        startProblemTimer(duration);
+        // Read the target problem's saved remaining time from AppState
+        const diffKey = newIndex === 0 ? 'easy' : 'medium';
+        const savedRemainingTime = (exam.timeRemaining && typeof exam.timeRemaining[diffKey] === 'number')
+            ? exam.timeRemaining[diffKey]
+            : (newIndex === 0 ? 1500 : 1800);
+
+        if (savedRemainingTime > 0) {
+            startProblemTimer(savedRemainingTime);
+        } else {
+            // If remaining time is 0, do not restart timer. Update display to 00:00 and critical state
+            if (timerDisplay) timerDisplay.textContent = '00:00';
+            if (timerBadge) timerBadge.className = 'timer-badge timer-critical';
+        }
     }
 
     /**
