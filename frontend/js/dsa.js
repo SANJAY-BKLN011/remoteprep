@@ -188,17 +188,26 @@
      */
     function startExam() {
         const selectedTopics = window.AppState ? window.AppState.getSelectedTopics().dsa : [];
-        const result = selectDsaQuestions(selectedTopics);
-
-        if (!result.success || !result.questions || result.questions.length !== 2) {
-            alert(result.error || 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.');
+        if (!selectedTopics || selectedTopics.length === 0) {
+            alert('Unable to generate the DSA examination because no DSA topics were selected.');
             return false;
         }
 
-        const questions = result.questions;
+        const result = selectDsaQuestions(selectedTopics);
+        const selectedQuestions = (result && result.questions) ? result.questions : [];
+
+        console.log("Selected DSA topics:", selectedTopics);
+        console.log("Selected DSA questions:", selectedQuestions);
+
+        if (!result || !result.success || !selectedQuestions || selectedQuestions.length !== 2) {
+            alert((result && result.error) || 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.');
+            return false;
+        }
 
         // 1. Initialize DSA state in AppState
-        window.AppState.initDsaExam(questions);
+        window.AppState.initDsaExam(selectedQuestions);
+
+        console.log("DSA exam state:", window.AppState.getDsaExam());
 
         // 2. Navigate to DSA Page view
         window.Navigation.navigateTo('page-dsa');
@@ -409,7 +418,10 @@
      */
     function switchToProblem(newIndex) {
         const exam = window.AppState ? window.AppState.getDsaExam() : null;
-        if (!exam) return;
+        if (!exam || !exam.questions || exam.questions.length !== 2) {
+            console.error("DSA exam is not initialized correctly.");
+            return;
+        }
 
         // Auto-save current code before switching
         handleCodeInput();
