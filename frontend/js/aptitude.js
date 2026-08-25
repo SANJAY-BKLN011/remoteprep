@@ -177,7 +177,12 @@
         // 2. Initialize exam state in AppState
         window.AppState.initAptitudeExam(generationResult.questions);
 
-        // 3. Switch to Aptitude page view
+        // 3. Switch to Aptitude page view and show active exam container
+        const examContainer = document.getElementById('aptitude-exam-container');
+        const summaryContainer = document.getElementById('aptitude-summary-container');
+        if (examContainer) examContainer.classList.remove('hidden');
+        if (summaryContainer) summaryContainer.classList.add('hidden');
+
         window.Navigation.navigateTo('page-aptitude');
 
         // 4. Render initial UI
@@ -465,61 +470,67 @@
         // 4. Save results to AppState
         window.AppState.completeAptitudeExam(resultsPayload);
 
-        // 5. Populate summary into Page 5 placeholder and navigate
-        displayAptitudeSummaryOnPage5(resultsPayload);
-        window.Navigation.navigateTo('page-dsa');
+        // 5. Populate summary into Page 4 summary container
+        displayAptitudeSummary(resultsPayload);
     }
 
     /**
-     * Renders Aptitude result summary on Page 5 placeholder
+     * Renders Aptitude result summary on Page 4 transition container
      */
-    function displayAptitudeSummaryOnPage5(results) {
-        const dsaContainer = document.getElementById('dsa-container');
-        if (!dsaContainer) return;
+    function displayAptitudeSummary(results) {
+        const examContainer = document.getElementById('aptitude-exam-container');
+        const summaryContainer = document.getElementById('aptitude-summary-container');
 
-        dsaContainer.innerHTML = `
-            <div class="apt-results-summary-card">
-                <div class="summary-card-header">
-                    <h3>\u2714 Aptitude Section Completed</h3>
-                    <p>Your performance in the Aptitude Examination has been recorded.</p>
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">${results.score} / ${results.totalQuestions}</div>
-                        <div class="stat-label">Final Aptitude Score</div>
-                    </div>
-                    <div class="stat-card stat-correct">
-                        <div class="stat-value">${results.correct}</div>
-                        <div class="stat-label">Correct Answers</div>
-                    </div>
-                    <div class="stat-card stat-wrong">
-                        <div class="stat-value">${results.wrong}</div>
-                        <div class="stat-label">Wrong Answers</div>
-                    </div>
-                    <div class="stat-card stat-skipped">
-                        <div class="stat-value">${results.skipped}</div>
-                        <div class="stat-label">Skipped / Unanswered</div>
-                    </div>
-                </div>
-                <div class="info-box" style="margin-top: 1.5rem;">
-                    <strong>Next Stage:</strong> DSA Programming Assessment (2 Problems: 1 Easy [25 mins], 1 Medium [30 mins]).<br>
-                    Make sure you are ready before clicking below to start the DSA timer.
-                </div>
-                <div style="margin-top: 1.5rem; text-align: right;">
-                    <button type="button" id="btn-start-dsa-exam" class="btn btn-primary">
-                        Start DSA Assessment &rarr;
-                    </button>
-                </div>
-            </div>
-        `;
+        if (examContainer) {
+            examContainer.classList.add('hidden');
+        }
 
-        const btnStartDsa = document.getElementById('btn-start-dsa-exam');
-        if (btnStartDsa) {
-            btnStartDsa.addEventListener('click', () => {
-                if (window.Dsa) {
-                    window.Dsa.startExam();
-                }
-            });
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `
+                <div class="apt-results-summary-card">
+                    <div class="summary-card-header">
+                        <h3>\u2714 Aptitude Section Completed</h3>
+                        <p>Your performance in the Aptitude Examination has been recorded.</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">${results.score} / ${results.totalQuestions}</div>
+                            <div class="stat-label">Final Aptitude Score</div>
+                        </div>
+                        <div class="stat-card stat-correct">
+                            <div class="stat-value">${results.correct}</div>
+                            <div class="stat-label">Correct Answers</div>
+                        </div>
+                        <div class="stat-card stat-wrong">
+                            <div class="stat-value">${results.wrong}</div>
+                            <div class="stat-label">Wrong Answers</div>
+                        </div>
+                        <div class="stat-card stat-skipped">
+                            <div class="stat-value">${results.skipped}</div>
+                            <div class="stat-label">Skipped / Unanswered</div>
+                        </div>
+                    </div>
+                    <div class="info-box" style="margin-top: 1.5rem;">
+                        <strong>Next Stage:</strong> DSA Programming Assessment (2 Problems: 1 Easy [25 mins], 1 Medium [30 mins]).<br>
+                        Make sure you are ready before clicking below to start the DSA timer.
+                    </div>
+                    <div style="margin-top: 1.5rem; text-align: right;">
+                        <button type="button" id="btn-start-dsa-exam" class="btn btn-primary">
+                            Start DSA Assessment &rarr;
+                        </button>
+                    </div>
+                </div>
+            `;
+            summaryContainer.classList.remove('hidden');
+
+            const btnStartDsa = document.getElementById('btn-start-dsa-exam');
+            if (btnStartDsa) {
+                btnStartDsa.addEventListener('click', () => {
+                    if (window.Dsa) {
+                        window.Dsa.startExam();
+                    }
+                });
+            }
         }
     }
 

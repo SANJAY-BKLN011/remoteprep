@@ -296,82 +296,90 @@
         <!-- PAGE 4: APTITUDE EXAM                      -->
         <!-- ========================================== -->
         <section id="page-aptitude" class="page hidden">
-            <!-- Top Exam Bar with Question Count and Timer -->
-            <div class="exam-top-bar">
-                <div class="exam-title-badge">
-                    <span>APTITUDE ASSESSMENT</span>
-                    <span id="apt-answered-badge" class="exam-counter-pill">Answered: 0 / 20</span>
+            <!-- Active Exam View Container -->
+            <div id="aptitude-exam-container">
+                <!-- Top Exam Bar with Question Count and Timer -->
+                <div class="exam-top-bar">
+                    <div class="exam-title-badge">
+                        <span>APTITUDE ASSESSMENT</span>
+                        <span id="apt-answered-badge" class="exam-counter-pill">Answered: 0 / 20</span>
+                    </div>
+                    <div id="apt-timer-badge" class="timer-badge timer-normal">
+                        <span class="timer-label-small">Time Remaining:</span>
+                        <span id="apt-timer-display">30:00</span>
+                    </div>
                 </div>
-                <div id="apt-timer-badge" class="timer-badge timer-normal">
-                    <span class="timer-label-small">Time Remaining:</span>
-                    <span id="apt-timer-display">30:00</span>
+
+                <!-- Error Banner (if generation error occurs) -->
+                <div id="apt-error-banner" class="error-banner hidden" role="alert"></div>
+
+                <!-- Exam Layout: Question Box (Left) + Palette (Right) -->
+                <div class="exam-layout-grid">
+                    <!-- Left: Question & Options Area -->
+                    <div class="exam-main-column">
+                        <div class="exam-question-card">
+                            <div class="question-header-row">
+                                <h3 id="apt-question-header" class="question-number-title">Question 1 of 20</h3>
+                                <span class="question-status-badge">Single Choice</span>
+                            </div>
+
+                            <div id="apt-question-text" class="question-text">
+                                Loading question text...
+                            </div>
+
+                            <div id="apt-options-container" class="options-list">
+                                <!-- 4 MCQ Options rendered by aptitude.js -->
+                            </div>
+                        </div>
+
+                        <!-- Navigation Action Bar -->
+                        <div class="exam-action-bar">
+                            <button type="button" id="btn-apt-prev" class="btn btn-secondary" disabled>
+                                &larr; Previous
+                            </button>
+                            <div class="action-bar-right">
+                                <button type="button" id="btn-apt-skip" class="btn btn-skip">
+                                Skip
+                                </button>
+                                <button type="button" id="btn-apt-next" class="btn btn-primary">
+                                    Next &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Question Palette / Navigation Grid -->
+                    <aside class="palette-card">
+                        <h4 class="palette-card-title">Question Palette</h4>
+                        <div id="apt-palette-grid" class="palette-grid">
+                            <!-- 1-20 Question status items rendered by aptitude.js -->
+                        </div>
+
+                        <div class="palette-legend">
+                            <div class="legend-item">
+                                <span class="legend-box box-current"></span>
+                                <span>Current</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-box box-answered"></span>
+                                <span>Answered</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-box box-skipped"></span>
+                                <span>Skipped</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-box box-unanswered"></span>
+                                <span>Unanswered</span>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
 
-            <!-- Error Banner (if generation error occurs) -->
-            <div id="apt-error-banner" class="error-banner hidden" role="alert"></div>
-
-            <!-- Exam Layout: Question Box (Left) + Palette (Right) -->
-            <div class="exam-layout-grid">
-                <!-- Left: Question & Options Area -->
-                <div class="exam-main-column">
-                    <div class="exam-question-card">
-                        <div class="question-header-row">
-                            <h3 id="apt-question-header" class="question-number-title">Question 1 of 20</h3>
-                            <span class="question-status-badge">Single Choice</span>
-                        </div>
-
-                        <div id="apt-question-text" class="question-text">
-                            Loading question text...
-                        </div>
-
-                        <div id="apt-options-container" class="options-list">
-                            <!-- 4 MCQ Options rendered by aptitude.js -->
-                        </div>
-                    </div>
-
-                    <!-- Navigation Action Bar -->
-                    <div class="exam-action-bar">
-                        <button type="button" id="btn-apt-prev" class="btn btn-secondary" disabled>
-                            &larr; Previous
-                        </button>
-                        <div class="action-bar-right">
-                            <button type="button" id="btn-apt-skip" class="btn btn-skip">
-                                Skip
-                            </button>
-                            <button type="button" id="btn-apt-next" class="btn btn-primary">
-                                Next &rarr;
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Question Palette / Navigation Grid -->
-                <aside class="palette-card">
-                    <h4 class="palette-card-title">Question Palette</h4>
-                    <div id="apt-palette-grid" class="palette-grid">
-                        <!-- 1-20 Question status items rendered by aptitude.js -->
-                    </div>
-
-                    <div class="palette-legend">
-                        <div class="legend-item">
-                            <span class="legend-box box-current"></span>
-                            <span>Current</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box box-answered"></span>
-                            <span>Answered</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box box-skipped"></span>
-                            <span>Skipped</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box box-unanswered"></span>
-                            <span>Unanswered</span>
-                        </div>
-                    </div>
-                </aside>
+            <!-- Aptitude Section Completed Summary Container -->
+            <div id="aptitude-summary-container" class="hidden">
+                <!-- Injected by aptitude.js when Aptitude section is completed -->
             </div>
 
             <!-- Confirmation Modal for Submitting Aptitude -->
@@ -434,11 +442,11 @@
                     <div class="problem-header-meta">
                         <div class="problem-meta-left">
                             <span id="dsa-difficulty-badge" class="difficulty-badge diff-easy">EASY</span>
-                            <span id="dsa-topic-badge" class="topic-tag-badge">Arrays</span>
+                            <span id="dsa-topic-badge" class="topic-tag-badge">DSA</span>
                         </div>
                     </div>
 
-                    <h3 id="dsa-problem-title" class="dsa-title-text">Two Sum</h3>
+                    <h3 id="dsa-problem-title" class="dsa-title-text">Loading problem...</h3>
 
                     <div id="dsa-problem-desc" class="dsa-description-box">
                         <!-- Problem description paragraphs -->
@@ -525,7 +533,7 @@
                         Are you sure you want to submit your solution for:
                     </p>
                     <div id="modal-dsa-problem-title" style="font-weight: 800; color: var(--color-primary-dark); margin-bottom: 1rem;">
-                        Problem #1: Two Sum (EASY)
+                        Problem
                     </div>
                     <p style="font-size: 0.8125rem; color: var(--color-text-muted);">
                         Your program will be evaluated against all test cases. You can continue editing until the problem timer expires.
@@ -540,9 +548,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Transition container when reached from Aptitude finish -->
-            <div id="dsa-container" class="hidden"></div>
         </section>
 
         <!-- ========================================== -->
