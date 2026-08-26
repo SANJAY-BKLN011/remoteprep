@@ -10,20 +10,30 @@
 
 (function () {
     /**
-     * Checks basic Java code structure
+     * Checks basic code structure per language
      */
-    function analyzeCode(code) {
+    function analyzeCode(code, language = 'java') {
         const cleanCode = (code || '').trim();
+        const lang = (language || 'java').toLowerCase();
 
         if (!cleanCode) {
             return {
                 valid: false,
                 errorType: 'COMPILATION_ERROR',
-                message: 'Error: Source file is empty. Please write your Java solution.'
+                message: `Error: Source file is empty. Please write your ${lang.toUpperCase()} solution.`
             };
         }
 
-        // Basic brace balance check
+        // Python check: non-empty and minimal structure
+        if (lang === 'python') {
+            return {
+                valid: true,
+                errorType: null,
+                message: null
+            };
+        }
+
+        // C, C++, Java: basic brace balance check
         let openBraces = (cleanCode.match(/\{/g) || []).length;
         let closeBraces = (cleanCode.match(/\}/g) || []).length;
 
@@ -32,15 +42,6 @@
                 valid: false,
                 errorType: 'COMPILATION_ERROR',
                 message: `Compilation Error: Syntax error on token(s), mismatched braces { found: ${openBraces}, } found: ${closeBraces}`
-            };
-        }
-
-        // Check for basic class definition
-        if (!cleanCode.includes('class') || !cleanCode.includes('{')) {
-            return {
-                valid: false,
-                errorType: 'COMPILATION_ERROR',
-                message: 'Compilation Error: Class, interface, or enum expected in Java source file.'
             };
         }
 
@@ -54,12 +55,13 @@
     const MockCodeRunner = {
         /**
          * Simulates RUN action against visible sample test cases
-         * @param {string} code - Candidate Java source code
+         * @param {string} code - Candidate source code
          * @param {Object} question - Question object
+         * @param {string} language - Language ID ('java' | 'cpp' | 'c' | 'python')
          * @returns {Object} Execution result
          */
-        run: function (code, question) {
-            const analysis = analyzeCode(code);
+        run: function (code, question, language = 'java') {
+            const analysis = analyzeCode(code, language);
 
             if (!analysis.valid) {
                 return {
@@ -76,7 +78,6 @@
             let passedCount = 0;
 
             sampleCases.forEach((tc, idx) => {
-                // In mock simulation, valid code structure produces expected output
                 const passed = true;
                 if (passed) passedCount++;
 
@@ -100,12 +101,13 @@
 
         /**
          * Simulates SUBMIT action against all test cases (sample + hidden)
-         * @param {string} code - Candidate Java source code
+         * @param {string} code - Candidate source code
          * @param {Object} question - Question object
+         * @param {string} language - Language ID ('java' | 'cpp' | 'c' | 'python')
          * @returns {Object} Submission result
          */
-        submit: function (code, question) {
-            const analysis = analyzeCode(code);
+        submit: function (code, question, language = 'java') {
+            const analysis = analyzeCode(code, language);
 
             const allCases = [
                 ...(question.sampleTestCases || []),
@@ -124,7 +126,6 @@
                 };
             }
 
-            // If code is valid, simulate full acceptance across hidden test cases
             return {
                 verdict: 'Accepted',
                 totalTestCases: totalCases,

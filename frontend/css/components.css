@@ -1353,6 +1353,44 @@
     font-weight: 600;
 }
 
+.lang-selector-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lang-label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #ECEFF1;
+}
+
+.dsa-lang-dropdown {
+    background-color: #37474F;
+    color: #FFD54F;
+    border: 1.5px solid #546E7A;
+    border-radius: var(--radius-sm);
+    padding: 3px 10px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dsa-lang-dropdown:hover,
+.dsa-lang-dropdown:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(245, 124, 0, 0.25);
+}
+
+.dsa-lang-dropdown option {
+    background-color: #263238;
+    color: #ECEFF1;
+    font-weight: 600;
+}
+
 .lang-badge {
     background-color: #37474F;
     color: #FFD54F;

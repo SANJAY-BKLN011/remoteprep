@@ -33,8 +33,9 @@
         dsaExam: {
             questions: [],          // Array of 2 questions: [easyQuestion, mediumQuestion]
             currentIndex: 0,        // 0 for Easy (Problem 1), 1 for Medium (Problem 2)
-            code: {},               // questionId -> string (candidate's code)
-            submissions: {},        // questionId -> { verdict, testCasesPassed, totalTestCases, details, timestamp }
+            selectedLanguage: {},   // questionId -> 'java' | 'cpp' | 'c' | 'python'
+            code: {},               // questionId -> { java: '...', cpp: '...', c: '...', python: '...' }
+            submissions: {},        // questionId -> { verdict, testCasesPassed, totalTestCases, details, timestamp, language }
             skipped: [],            // Array of skipped questionIds
             timeRemaining: {
                 easy: 1500,         // 25 minutes in seconds
@@ -192,6 +193,7 @@
         initDsaExam: function (questions) {
             state.dsaExam.questions = [...questions];
             state.dsaExam.currentIndex = 0;
+            state.dsaExam.selectedLanguage = {};
             state.dsaExam.code = {};
             state.dsaExam.submissions = {};
             state.dsaExam.skipped = [];
@@ -203,24 +205,75 @@
             state.dsaExam.endTime = null;
             state.dsaExam.isCompleted = false;
 
-            // Pre-populate initial starter code
+            const supportedLangs = ['java', 'cpp', 'c', 'python'];
+
+            // Pre-populate initial starter code and default language ('java') for all questions
             questions.forEach(q => {
-                state.dsaExam.code[q.id] = (q.starterCode && q.starterCode.java) ? q.starterCode.java : '';
+                state.dsaExam.selectedLanguage[q.id] = 'java';
+                state.dsaExam.code[q.id] = {};
+                supportedLangs.forEach(lang => {
+                    if (q.starterCode && typeof q.starterCode === 'object' && q.starterCode[lang]) {
+                        state.dsaExam.code[q.id][lang] = q.starterCode[lang];
+                    } else if (typeof q.starterCode === 'string') {
+                        state.dsaExam.code[q.id][lang] = q.starterCode;
+                    } else {
+                        state.dsaExam.code[q.id][lang] = '';
+                    }
+                });
             });
         },
 
         /**
-         * Save candidate code for a problem ID
+         * Get selected programming language for a problem ID
          */
-        setDsaCode: function (questionId, code) {
-            state.dsaExam.code[questionId] = code;
+        getDsaLanguage: function (questionId) {
+            return (state.dsaExam.selectedLanguage && state.dsaExam.selectedLanguage[questionId]) || 'java';
         },
 
         /**
-         * Retrieve candidate code for a problem ID
+         * Set selected programming language for a problem ID
          */
-        getDsaCode: function (questionId) {
-            return state.dsaExam.code[questionId] || '';
+        setDsaLanguage: function (questionId, language) {
+            if (!state.dsaExam.selectedLanguage) {
+                state.dsaExam.selectedLanguage = {};
+            }
+            state.dsaExam.selectedLanguage[questionId] = language || 'java';
+        },
+
+        /**
+         * Save candidate code for a problem ID and language
+         * Supports both setDsaCode(questionId, code) and setDsaCode(questionId, language, code)
+         */
+        setDsaCode: function (questionId, langOrCode, maybeCode) {
+            if (!state.dsaExam.code[questionId]) {
+                state.dsaExam.code[questionId] = {};
+            }
+            if (typeof maybeCode === 'string') {
+                const lang = langOrCode || 'java';
+                state.dsaExam.code[questionId][lang] = maybeCode;
+            } else {
+                const currentLang = this.getDsaLanguage(questionId);
+                if (typeof state.dsaExam.code[questionId] === 'string') {
+                    state.dsaExam.code[questionId] = { [currentLang]: langOrCode };
+                } else {
+                    state.dsaExam.code[questionId][currentLang] = langOrCode;
+                }
+            }
+        },
+
+        /**
+         * Retrieve candidate code for a problem ID and language
+         * Supports both getDsaCode(questionId) and getDsaCode(questionId, language)
+         */
+        getDsaCode: function (questionId, language) {
+            if (!state.dsaExam.code || !state.dsaExam.code[questionId]) {
+                return '';
+            }
+            const lang = language || this.getDsaLanguage(questionId);
+            if (typeof state.dsaExam.code[questionId] === 'string') {
+                return state.dsaExam.code[questionId];
+            }
+            return state.dsaExam.code[questionId][lang] || '';
         },
 
         /**

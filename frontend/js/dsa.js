@@ -19,6 +19,7 @@
     let problemDescEl;
     let problemExamplesEl;
     let problemConstraintsEl;
+    let languageSelect;
     let codeEditorTextarea;
     let consoleOutputEl;
     let timerBadge;
@@ -54,6 +55,7 @@
         problemDescEl = document.getElementById('dsa-problem-desc');
         problemExamplesEl = document.getElementById('dsa-problem-examples');
         problemConstraintsEl = document.getElementById('dsa-problem-constraints');
+        languageSelect = document.getElementById('dsa-language-select');
         codeEditorTextarea = document.getElementById('dsa-code-editor');
         consoleOutputEl = document.getElementById('dsa-console-output');
         timerBadge = document.getElementById('dsa-timer-badge');
@@ -85,10 +87,44 @@
         if (btnModalCancel) btnModalCancel.addEventListener('click', closeSubmitModal);
         if (btnModalConfirm) btnModalConfirm.addEventListener('click', confirmSubmit);
 
+        // Language selector change
+        if (languageSelect) {
+            languageSelect.addEventListener('change', handleLanguageChange);
+        }
+
         // Auto-save code on input
         if (codeEditorTextarea) {
             codeEditorTextarea.addEventListener('input', handleCodeInput);
             codeEditorTextarea.addEventListener('keydown', handleEditorKeydown);
+        }
+    }
+
+    /**
+     * Handles programming language dropdown switch
+     * @param {Event} e 
+     */
+    function handleLanguageChange(e) {
+        const exam = window.AppState ? window.AppState.getDsaExam() : null;
+        if (!exam || !exam.questions || exam.questions.length === 0) return;
+
+        const currentQ = exam.questions[exam.currentIndex];
+        if (!currentQ) return;
+
+        const previousLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
+        const newLang = e.target.value;
+
+        // 1. Auto-save previous language code from editor
+        if (codeEditorTextarea) {
+            window.AppState.setDsaCode(currentQ.id, previousLang, codeEditorTextarea.value);
+        }
+
+        // 2. Update selected language in AppState
+        window.AppState.setDsaLanguage(currentQ.id, newLang);
+
+        // 3. Load code for new language into editor
+        const targetCode = window.AppState.getDsaCode(currentQ.id, newLang);
+        if (codeEditorTextarea) {
+            codeEditorTextarea.value = targetCode;
         }
     }
 
@@ -110,7 +146,7 @@
     }
 
     /**
-     * Saves code edits into AppState
+     * Saves code edits into AppState for current problem and language
      */
     function handleCodeInput() {
         const exam = window.AppState ? window.AppState.getDsaExam() : null;
@@ -118,7 +154,8 @@
 
         const currentQ = exam.questions[exam.currentIndex];
         if (currentQ && codeEditorTextarea) {
-            window.AppState.setDsaCode(currentQ.id, codeEditorTextarea.value);
+            const currentLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
+            window.AppState.setDsaCode(currentQ.id, currentLang, codeEditorTextarea.value);
         }
     }
 
@@ -329,9 +366,13 @@
             problemConstraintsEl.innerHTML = html;
         }
 
-        // 5. Code Editor
+        // 5. Code Editor & Language Selector
+        const currentLang = window.AppState.getDsaLanguage(q.id) || 'java';
+        if (languageSelect) {
+            languageSelect.value = currentLang;
+        }
         if (codeEditorTextarea) {
-            const savedCode = window.AppState.getDsaCode(q.id);
+            const savedCode = window.AppState.getDsaCode(q.id, currentLang);
             codeEditorTextarea.value = savedCode;
         }
 
@@ -339,7 +380,8 @@
         if (consoleOutputEl) {
             const submission = exam.submissions[q.id];
             if (submission) {
-                consoleOutputEl.innerHTML = `<span class="log-info">Current Submission Verdict:</span> <strong class="verdict-${submission.verdict.toLowerCase().replace(/\s+/g, '-')}">${escapeHtml(submission.verdict)}</strong> (${submission.testCasesPassed}/${submission.totalTestCases} Passed)`;
+                const subLang = submission.language ? ` [${submission.language.toUpperCase()}]` : '';
+                consoleOutputEl.innerHTML = `<span class="log-info">Current Submission Verdict${subLang}:</span> <strong class="verdict-${submission.verdict.toLowerCase().replace(/\s+/g, '-')}">${escapeHtml(submission.verdict)}</strong> (${submission.testCasesPassed}/${submission.totalTestCases} Passed)`;
             } else {
                 consoleOutputEl.textContent = 'Run your code to see the output.';
             }
@@ -381,31 +423,27 @@
             let statusClass = 'pill-unanswered';
 
             if (isSubmitted) {
-                statusText = 'Completed \u2714';
-                statusClass = 'pill-completed';
+                statusText = 'Submitted';
+                statusClass = 'pill-submitted';
             } else if (isSkipped) {
                 statusText = 'Skipped';
                 statusClass = 'pill-skipped';
             }
 
-            if (isCurrent) {
-                statusClass += ' pill-active';
-            }
-
             html += `
-                <button type="button" class="problem-status-pill ${statusClass}" data-index="${i}">
-                    <strong>Problem ${i + 1} (${q.difficulty.toUpperCase()}):</strong> ${statusText}
+                <button type="button" class="dsa-pill ${isCurrent ? 'active' : ''} ${statusClass}" data-index="${i}">
+                    <span class="pill-title">Problem ${i + 1} (${q.difficulty.toUpperCase()})</span>
+                    <span class="pill-status">${statusText}</span>
                 </button>
             `;
         });
 
         problemStatusPills.innerHTML = html;
 
-        // Bind pill click for quick jump
-        const pillButtons = problemStatusPills.querySelectorAll('.problem-status-pill');
-        pillButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetIdx = parseInt(btn.getAttribute('data-index'), 10);
+        // Attach click listeners to pills
+        problemStatusPills.querySelectorAll('.dsa-pill').forEach(pill => {
+            pill.addEventListener('click', (e) => {
+                const targetIdx = parseInt(pill.getAttribute('data-index'), 10);
                 if (targetIdx !== exam.currentIndex) {
                     switchToProblem(targetIdx);
                 }
@@ -451,23 +489,29 @@
     }
 
     /**
-     * Handles Reset Code button click
+     * Handles Reset Code button click - resets ONLY the active language of the active problem
      */
     function handleReset() {
         const exam = window.AppState ? window.AppState.getDsaExam() : null;
         if (!exam) return;
 
         const currentQ = exam.questions[exam.currentIndex];
-        const defaultCode = (currentQ.starterCode && currentQ.starterCode.java) ? currentQ.starterCode.java : '';
+        const currentLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
+        let defaultCode = '';
+        if (currentQ.starterCode && typeof currentQ.starterCode === 'object') {
+            defaultCode = currentQ.starterCode[currentLang] || '';
+        } else if (typeof currentQ.starterCode === 'string') {
+            defaultCode = currentQ.starterCode;
+        }
 
         if (codeEditorTextarea) {
             codeEditorTextarea.value = defaultCode;
         }
 
-        window.AppState.setDsaCode(currentQ.id, defaultCode);
+        window.AppState.setDsaCode(currentQ.id, currentLang, defaultCode);
 
         if (consoleOutputEl) {
-            consoleOutputEl.innerHTML = '<span class="log-success">\u2714 Code reset successfully to original starter template.</span>';
+            consoleOutputEl.innerHTML = `<span class="log-success">\u2714 ${currentLang.toUpperCase()} starter template restored successfully.</span>`;
         }
     }
 
@@ -479,19 +523,20 @@
         if (!exam) return;
 
         const currentQ = exam.questions[exam.currentIndex];
+        const currentLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
         const code = codeEditorTextarea ? codeEditorTextarea.value : '';
 
         if (consoleOutputEl) {
-            consoleOutputEl.textContent = 'Running sample test cases...';
+            consoleOutputEl.textContent = `Running sample test cases (${currentLang.toUpperCase()})...`;
         }
 
         // Mock execution run
-        const runResult = window.MockCodeRunner ? window.MockCodeRunner.run(code, currentQ) : { status: 'COMPILATION_ERROR', errorMessage: 'Runner unavailable.' };
+        const runResult = window.MockCodeRunner ? window.MockCodeRunner.run(code, currentQ, currentLang) : { status: 'COMPILATION_ERROR', errorMessage: 'Runner unavailable.' };
 
         if (!consoleOutputEl) return;
 
         if (runResult.status === 'SUCCESS') {
-            let logHtml = `<div class="log-header">\u2714 Sample Test Cases Execution Result</div>\n`;
+            let logHtml = `<div class="log-header">\u2714 Sample Test Cases Execution Result (${currentLang.toUpperCase()})</div>\n`;
             runResult.testResults.forEach(tc => {
                 logHtml += `
                     <div class="test-case-log ${tc.passed ? 'tc-passed' : 'tc-failed'}">
@@ -522,8 +567,9 @@
         if (!exam || !modalSubmitConfirm) return;
 
         const currentQ = exam.questions[exam.currentIndex];
+        const currentLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
         if (modalProblemTitle) {
-            modalProblemTitle.textContent = `Problem #${exam.currentIndex + 1}: ${currentQ.title} (${currentQ.difficulty.toUpperCase()})`;
+            modalProblemTitle.textContent = `Problem #${exam.currentIndex + 1}: ${currentQ.title} (${currentQ.difficulty.toUpperCase()} - ${currentLang.toUpperCase()})`;
         }
 
         modalSubmitConfirm.classList.remove('hidden');
@@ -548,20 +594,24 @@
         if (!exam) return;
 
         const currentQ = exam.questions[exam.currentIndex];
+        const currentLang = window.AppState.getDsaLanguage(currentQ.id) || 'java';
         const code = codeEditorTextarea ? codeEditorTextarea.value : '';
 
         // Run mock submit engine
-        const submitResult = window.MockCodeRunner ? window.MockCodeRunner.submit(code, currentQ) : { verdict: 'Compilation Error', totalTestCases: 5, testCasesPassed: 0 };
+        const submitResult = window.MockCodeRunner ? window.MockCodeRunner.submit(code, currentQ, currentLang) : { verdict: 'Compilation Error', totalTestCases: 5, testCasesPassed: 0 };
 
         // Save submission in AppState
-        window.AppState.recordDsaSubmission(currentQ.id, submitResult);
+        window.AppState.recordDsaSubmission(currentQ.id, {
+            ...submitResult,
+            language: currentLang
+        });
 
         // Update Console Output
         if (consoleOutputEl) {
             if (submitResult.verdict === 'Accepted') {
                 consoleOutputEl.innerHTML = `
                     <div class="submission-success-card">
-                        <div class="sub-verdict-title text-success">\u2714 Accepted</div>
+                        <div class="sub-verdict-title text-success">\u2714 Accepted (${currentLang.toUpperCase()})</div>
                         <div class="sub-meta">All Hidden Test Cases Passed: <strong>${submitResult.testCasesPassed} / ${submitResult.totalTestCases}</strong></div>
                         <div class="sub-meta">Execution Time: ${submitResult.executionTime} &bull; Memory: ${submitResult.memoryUsed}</div>
                     </div>
@@ -569,7 +619,7 @@
             } else {
                 consoleOutputEl.innerHTML = `
                     <div class="submission-error-card">
-                        <div class="sub-verdict-title text-error">\u2718 ${escapeHtml(submitResult.verdict)}</div>
+                        <div class="sub-verdict-title text-error">\u2718 ${escapeHtml(submitResult.verdict)} (${currentLang.toUpperCase()})</div>
                         <div class="sub-meta">Test Cases Passed: <strong>${submitResult.testCasesPassed} / ${submitResult.totalTestCases}</strong></div>
                         <pre class="error-pre">${escapeHtml(submitResult.errorMessage || 'Failed hidden verification test cases.')}</pre>
                     </div>

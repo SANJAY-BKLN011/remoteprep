@@ -471,7 +471,15 @@
                 <div class="dsa-editor-panel">
                     <!-- Editor Header -->
                     <div class="editor-header-bar">
-                        <span>Language: <strong class="lang-badge">Java (JDK 17)</strong></span>
+                        <div class="lang-selector-wrapper">
+                            <label for="dsa-language-select" class="lang-label">Language:</label>
+                            <select id="dsa-language-select" class="dsa-lang-dropdown" aria-label="Select Programming Language">
+                                <option value="java" selected>Java</option>
+                                <option value="cpp">C++</option>
+                                <option value="c">C</option>
+                                <option value="python">Python</option>
+                            </select>
+                        </div>
                         <span style="font-size: 0.75rem; color: #B0BEC5;">Tab indentation &bull; Monospace Editor</span>
                     </div>
 
