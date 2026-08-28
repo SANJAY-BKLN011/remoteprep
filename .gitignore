@@ -14,3 +14,9 @@ desktop.ini
 
 # Logs
 *.log
+
+# Maven & Java build artifacts
+target/
+**/target/
+*.class
+*.jar
