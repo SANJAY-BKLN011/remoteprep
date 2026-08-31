@@ -20,3 +20,9 @@ target/
 **/target/
 *.class
 *.jar
+
+# Local configuration & credentials
+.env
+.env.*
+application-local.properties
+application-secret.properties
