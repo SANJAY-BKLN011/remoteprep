@@ -8,17 +8,28 @@ import java.util.List;
 
 /**
  * Spring Data JPA Repository for DsaSubmission entity.
+ * Reserved exclusively for candidate actual source code submissions.
  */
 @Repository
 public interface DsaSubmissionRepository extends JpaRepository<DsaSubmission, Long> {
 
     /**
-     * Retrieves assigned DSA questions/submissions for an assessment.
+     * Retrieves all code submissions for an assessment ordered chronologically descending.
      */
-    List<DsaSubmission> findByAssessment_Id(Long assessmentId);
+    List<DsaSubmission> findByAssessment_IdOrderBySubmittedAtDesc(Long assessmentId);
 
     /**
-     * Counts assigned DSA submissions for an assessment.
+     * Retrieves all code submissions for a specific question within an assessment, ordered descending.
+     */
+    List<DsaSubmission> findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDesc(Long assessmentId, Long questionId);
+
+    /**
+     * Counts actual code submissions for a specific question within an assessment.
+     */
+    long countByAssessment_IdAndQuestion_Id(Long assessmentId, Long questionId);
+
+    /**
+     * Counts all code submissions for an assessment.
      */
     long countByAssessment_Id(Long assessmentId);
 }

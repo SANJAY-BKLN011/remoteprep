@@ -19,6 +19,11 @@ public interface DsaExamQuestionRepository extends JpaRepository<DsaExamQuestion
     List<DsaExamQuestion> findByAssessment_IdOrderByQuestionOrderAsc(Long assessmentId);
 
     /**
+     * Checks if a question was assigned to a specific assessment.
+     */
+    boolean existsByAssessment_IdAndQuestion_Id(Long assessmentId, Long questionId);
+
+    /**
      * Counts assigned DSA questions for an assessment.
      */
     long countByAssessment_Id(Long assessmentId);
