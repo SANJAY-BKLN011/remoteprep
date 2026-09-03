@@ -5,16 +5,15 @@ import com.remoteprep.dto.GenerateDsaExamRequest;
 import com.remoteprep.dto.GenerateDsaExamResponse;
 import com.remoteprep.dto.StarterCodeDto;
 import com.remoteprep.entity.Assessment;
+import com.remoteprep.entity.DsaExamQuestion;
 import com.remoteprep.entity.DsaQuestion;
-import com.remoteprep.entity.DsaSubmission;
 import com.remoteprep.repository.AssessmentRepository;
+import com.remoteprep.repository.DsaExamQuestionRepository;
 import com.remoteprep.repository.DsaQuestionRepository;
-import com.remoteprep.repository.DsaSubmissionRepository;
 import com.remoteprep.repository.DsaTopicRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +21,8 @@ import java.util.Set;
 
 /**
  * Service Layer for DSA Question Retrieval and Randomized Exam Generation.
+ * Persists assignments exclusively to 'dsa_exam_questions', preserving
+ * 'dsa_submissions' solely for actual candidate source-code submissions.
  */
 @Service
 public class DsaQuestionService {
@@ -29,23 +30,24 @@ public class DsaQuestionService {
     private final DsaQuestionRepository dsaQuestionRepository;
     private final DsaTopicRepository dsaTopicRepository;
     private final AssessmentRepository assessmentRepository;
-    private final DsaSubmissionRepository dsaSubmissionRepository;
+    private final DsaExamQuestionRepository dsaExamQuestionRepository;
 
     public DsaQuestionService(DsaQuestionRepository dsaQuestionRepository,
                               DsaTopicRepository dsaTopicRepository,
                               AssessmentRepository assessmentRepository,
-                              DsaSubmissionRepository dsaSubmissionRepository) {
+                              DsaExamQuestionRepository dsaExamQuestionRepository) {
         this.dsaQuestionRepository = dsaQuestionRepository;
         this.dsaTopicRepository = dsaTopicRepository;
         this.assessmentRepository = assessmentRepository;
-        this.dsaSubmissionRepository = dsaSubmissionRepository;
+        this.dsaExamQuestionRepository = dsaExamQuestionRepository;
     }
 
     /**
      * Generates or retrieves the assigned DSA exam for an active assessment.
      * Guarantees exactly 1 EASY problem and 1 MEDIUM problem.
-     * Persists assignment to 'dsa_submissions' (with result_status='UNATTEMPTED') to ensure
-     * idempotency so repeated requests for the same assessment return the identical question pair.
+     * Persists assignment to 'dsa_exam_questions' to ensure idempotency so repeated
+     * requests for the same assessment return the identical question pair.
+     * Never creates fake rows in 'dsa_submissions'.
      */
     @Transactional
     public GenerateDsaExamResponse generateDsaExam(GenerateDsaExamRequest request) {
@@ -72,11 +74,11 @@ public class DsaQuestionService {
         }
 
         // 3. Idempotency check: If DSA questions have already been assigned, return the SAME two questions
-        List<DsaSubmission> existingSubmissions = dsaSubmissionRepository.findByAssessment_Id(assessmentId);
-        if (existingSubmissions != null && existingSubmissions.size() == 2) {
+        List<DsaExamQuestion> existingAssignments = dsaExamQuestionRepository.findByAssessment_IdOrderByQuestionOrderAsc(assessmentId);
+        if (existingAssignments != null && existingAssignments.size() == 2) {
             List<DsaQuestionResponse> assignedQuestions = new ArrayList<>(2);
-            for (DsaSubmission sub : existingSubmissions) {
-                assignedQuestions.add(toDsaQuestionResponse(sub.getQuestion()));
+            for (DsaExamQuestion assignment : existingAssignments) {
+                assignedQuestions.add(toDsaQuestionResponse(assignment.getQuestion()));
             }
             return new GenerateDsaExamResponse(assessmentId, assignedQuestions);
         }
@@ -120,13 +122,12 @@ public class DsaQuestionService {
         DsaQuestion mediumQuestion = dsaQuestionRepository.findRandomQuestionByTopicIdsAndDifficulty(topicIds, "MEDIUM")
                 .orElseThrow(() -> new IllegalStateException("Failed to retrieve MEDIUM question"));
 
-        // 7. Persist assigned questions in dsa_submissions table as UNATTEMPTED
-        LocalDateTime now = LocalDateTime.now();
-        DsaSubmission easySubmission = new DsaSubmission(assessment, easyQuestion, "UNSELECTED", "", "UNATTEMPTED", now);
-        DsaSubmission mediumSubmission = new DsaSubmission(assessment, mediumQuestion, "UNSELECTED", "", "UNATTEMPTED", now);
+        // 7. Persist assigned questions in dsa_exam_questions (order 1 for EASY, 2 for MEDIUM)
+        DsaExamQuestion assignment1 = new DsaExamQuestion(assessment, easyQuestion, 1);
+        DsaExamQuestion assignment2 = new DsaExamQuestion(assessment, mediumQuestion, 2);
 
-        dsaSubmissionRepository.save(easySubmission);
-        dsaSubmissionRepository.save(mediumSubmission);
+        dsaExamQuestionRepository.save(assignment1);
+        dsaExamQuestionRepository.save(assignment2);
 
         // 8. Map to client-safe DTOs (DO NOT expose test_cases)
         List<DsaQuestionResponse> questionDtos = List.of(

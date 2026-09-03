@@ -149,7 +149,28 @@ CREATE TABLE aptitude_answers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- TABLE 8: dsa_submissions
+-- TABLE 8: dsa_exam_questions
+-- Stores the assigned DSA questions (1 EASY, 1 MEDIUM) for an assessment.
+-- =============================================================================
+CREATE TABLE dsa_exam_questions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    assessment_id BIGINT NOT NULL,
+    question_id BIGINT NOT NULL,
+    question_order INT NOT NULL COMMENT '1 for EASY, 2 for MEDIUM',
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dsa_eq_assessment FOREIGN KEY (assessment_id) 
+        REFERENCES assessments(id) 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dsa_eq_question FOREIGN KEY (question_id) 
+        REFERENCES dsa_questions(id) 
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    UNIQUE KEY uq_dsa_eq_assessment_question (assessment_id, question_id),
+    UNIQUE KEY uq_dsa_eq_assessment_order (assessment_id, question_order),
+    INDEX idx_dsa_eq_assessment (assessment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- TABLE 9: dsa_submissions
 -- Records the candidate's submitted source code and verification verdict for DSA.
 -- =============================================================================
 CREATE TABLE dsa_submissions (
