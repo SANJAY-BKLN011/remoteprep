@@ -377,6 +377,15 @@
     window.TopicSelection = {
         init: init,
         getSelectedAptitude: () => Array.from(selectedAptitude),
-        getSelectedDsa: () => Array.from(selectedDsa)
+        getSelectedDsa: () => Array.from(selectedDsa),
+        getBackendAptitudeTopicIds: () => {
+            const arr = Array.from(selectedAptitude);
+            const mapped = window.TopicData ? window.TopicData.mapAptitudeTopicIds(arr) : arr;
+            return mapped.slice(0, 3);
+        },
+        getBackendDsaTopicIds: () => {
+            const arr = Array.from(selectedDsa);
+            return window.TopicData ? window.TopicData.mapDsaTopicIds(arr) : arr;
+        }
     };
 })();

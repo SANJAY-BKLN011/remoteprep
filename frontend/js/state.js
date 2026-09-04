@@ -13,7 +13,10 @@
     const initialState = {
         student: {
             name: '',
-            rollNumber: ''
+            rollNumber: '',
+            studentId: null,
+            assessmentId: null,
+            status: null
         },
         selectedTopics: {
             aptitude: [], // Array of topic IDs
@@ -48,7 +51,8 @@
         results: {
             aptitude: null,
             dsa: null,
-            summary: null
+            summary: null,
+            finalResult: null
         }
     };
 
@@ -78,10 +82,49 @@
         },
 
         /**
+         * Set authoritative student and assessment session details from backend
+         */
+        setStudentDetails: function (details = {}) {
+            if (details.name !== undefined) state.student.name = (details.name || '').trim();
+            if (details.rollNumber !== undefined) state.student.rollNumber = (details.rollNumber || '').trim().toUpperCase();
+            if (details.studentId !== undefined) state.student.studentId = details.studentId;
+            if (details.assessmentId !== undefined) state.student.assessmentId = details.assessmentId;
+            if (details.status !== undefined) state.student.status = details.status;
+        },
+
+        /**
+         * Get active assessment ID
+         */
+        getAssessmentId: function () {
+            return state.student.assessmentId;
+        },
+
+        /**
+         * Get active student ID
+         */
+        getStudentId: function () {
+            return state.student.studentId;
+        },
+
+        /**
          * Get active student details
          */
         getStudent: function () {
             return state.student;
+        },
+
+        /**
+         * Set authoritative final result retrieved from backend
+         */
+        setFinalResult: function (result) {
+            state.results.finalResult = result ? { ...result } : null;
+        },
+
+        /**
+         * Get authoritative final result
+         */
+        getFinalResult: function () {
+            return state.results.finalResult;
         },
 
         /**

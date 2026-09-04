@@ -94,13 +94,82 @@
         return DSA_TOPICS.map(topic => topic.id);
     }
 
+    // Database ID Mappings (Aligning with seed.sql in MySQL)
+    const APTITUDE_CODE_TO_ID = {
+        'quant_number_system': 1,
+        'quant_percentages': 2,
+        'quant_profit_loss': 3,
+        'quant_interest': 4,
+        'quant_ratio_proportion': 5,
+        'quant_averages_mixtures': 6,
+        'quant_time_work': 7,
+        'quant_time_speed_distance': 8,
+        'quant_permutation_probability': 9,
+        'quant_sequence_series': 10,
+        'quant_geometry_trig': 11,
+        'quant_algebra_quadratics': 12,
+        'logical_coding_decoding': 13,
+        'logical_blood_relations': 14,
+        'logical_direction_sense': 15,
+        'logical_seating_arrangements': 16,
+        'logical_puzzles': 17,
+        'logical_syllogism': 18,
+        'logical_clocks_calendars': 19,
+        'logical_series': 20,
+        'logical_statement_reasoning': 21,
+        'logical_data_sufficiency': 22,
+        'logical_non_verbal': 23,
+        'verbal_reading_comprehension': 24,
+        'verbal_spotting_errors': 25,
+        'verbal_para_jumbles': 26,
+        'verbal_synonyms_antonyms': 27,
+        'verbal_idioms_phrases': 28,
+        'verbal_fill_in_blanks': 29,
+        'di_tables_charts': 30,
+        'di_bar_pie_charts': 31,
+        'di_line_caselets': 32
+    };
+
+    const DSA_CODE_TO_ID = {
+        'dsa_arrays': 1,
+        'dsa_strings': 2,
+        'dsa_linked_lists': 3,
+        'dsa_stack_queue': 4,
+        'dsa_binary_trees': 5,
+        'dsa_bst': 6,
+        'dsa_recursion_backtracking': 7,
+        'dsa_dynamic_programming': 8,
+        'dsa_graphs': 9,
+        'dsa_heap_priority_queue': 10
+    };
+
+    function mapAptitudeTopicIds(topicCodes) {
+        if (!Array.isArray(topicCodes)) return [];
+        return topicCodes.map(code => {
+            if (typeof code === 'number') return code;
+            return APTITUDE_CODE_TO_ID[code] || parseInt(code, 10) || 1;
+        });
+    }
+
+    function mapDsaTopicIds(topicCodes) {
+        if (!Array.isArray(topicCodes)) return [];
+        return topicCodes.map(code => {
+            if (typeof code === 'number') return code;
+            return DSA_CODE_TO_ID[code] || parseInt(code, 10) || 1;
+        });
+    }
+
     const TopicData = {
         APTITUDE_CATEGORIES: APTITUDE_CATEGORIES,
         DSA_TOPICS: DSA_TOPICS,
         getAllAptitudeTopicIds: getAllAptitudeTopicIds,
         getAllDsaTopicIds: getAllDsaTopicIds,
         TOTAL_APTITUDE_TOPICS: getAllAptitudeTopicIds().length,
-        TOTAL_DSA_TOPICS: DSA_TOPICS.length
+        TOTAL_DSA_TOPICS: DSA_TOPICS.length,
+        APTITUDE_CODE_TO_ID: APTITUDE_CODE_TO_ID,
+        DSA_CODE_TO_ID: DSA_CODE_TO_ID,
+        mapAptitudeTopicIds: mapAptitudeTopicIds,
+        mapDsaTopicIds: mapDsaTopicIds
     };
 
     // Expose to window

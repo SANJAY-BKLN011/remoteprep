@@ -76,7 +76,7 @@
      * Handles the Page 1 Student Details submission
      * @param {Event} e 
      */
-    function handleStudentFormSubmit(e) {
+    async function handleStudentFormSubmit(e) {
         e.preventDefault();
 
         const nameValue = nameInput.value.trim();
@@ -93,11 +93,43 @@
         // 2. Clear any lingering errors
         resetErrors();
 
-        // 3. Update Application State
-        window.AppState.setStudent(nameValue, rollValue);
+        // Prevent double submission and provide visual feedback
+        if (btnContinue) {
+            btnContinue.disabled = true;
+            btnContinue.textContent = 'Connecting to Server...';
+        }
 
-        // 4. Navigate to Page 2 (Topic Selection)
-        window.Navigation.navigateTo('page-topics');
+        try {
+            // 3. Call backend POST /api/students/start
+            const response = await window.ApiClient.startAssessment({
+                name: nameValue,
+                rollNumber: rollValue
+            });
+
+            // 4. Update Application State with authoritative backend identifiers
+            window.AppState.setStudentDetails({
+                studentId: response.studentId,
+                assessmentId: response.assessmentId,
+                name: response.name || nameValue,
+                rollNumber: response.rollNumber || rollValue,
+                status: response.status || 'IN_PROGRESS'
+            });
+
+            // 5. Navigate to Page 2 (Topic Selection)
+            window.Navigation.navigateTo('page-topics');
+        } catch (error) {
+            console.error('[Page 1] Error starting assessment:', error);
+            if (formErrorBanner) {
+                formErrorBanner.textContent = error.message || 'Unable to start assessment session. Please try again or contact the lab administrator.';
+                formErrorBanner.classList.remove('hidden');
+                formErrorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } finally {
+            if (btnContinue) {
+                btnContinue.disabled = false;
+                btnContinue.innerHTML = 'Continue to Topic Selection &rarr;';
+            }
+        }
     }
 
     /**

@@ -161,23 +161,57 @@
     }
 
     /**
-     * Starts the Aptitude Examination session
+     * Starts the Aptitude Examination session by fetching authoritative questions from backend
      */
-    function startExam() {
-        const selectedTopics = window.AppState ? window.AppState.getSelectedTopics().aptitude : [];
-
-        // 1. Generate 20-question examination
-        const generationResult = generateAptitudeExam(selectedTopics);
-
-        if (!generationResult.success) {
-            alert(generationResult.error);
+    async function startExam() {
+        const assessmentId = window.AppState ? window.AppState.getAssessmentId() : null;
+        if (!assessmentId) {
+            alert('Assessment session has not been initialized. Please return to the first page.');
+            if (window.Navigation) window.Navigation.navigateTo('page-student');
             return false;
         }
 
-        // 2. Initialize exam state in AppState
-        window.AppState.initAptitudeExam(generationResult.questions);
+        // 1. Get selected topic IDs mapped to database numeric IDs
+        let topicIds = [];
+        if (window.TopicSelection && typeof window.TopicSelection.getBackendAptitudeTopicIds === 'function') {
+            topicIds = window.TopicSelection.getBackendAptitudeTopicIds();
+        } else {
+            const selected = window.AppState ? window.AppState.getSelectedTopics().aptitude : [];
+            topicIds = window.TopicData ? window.TopicData.mapAptitudeTopicIds(selected).slice(0, 3) : [1];
+        }
 
-        // 3. Switch to Aptitude page view and show active exam container
+        if (!topicIds || topicIds.length === 0) {
+            topicIds = [1];
+        }
+
+        // 2. Fetch authoritative questions from backend POST /api/aptitude/exam
+        const examResponse = await window.ApiClient.generateAptitudeExam({
+            assessmentId: assessmentId,
+            topicIds: topicIds
+        });
+
+        if (!examResponse || !examResponse.questions || examResponse.questions.length === 0) {
+            throw new Error('No questions received from the assessment server.');
+        }
+
+        // 3. Normalize backend questions for UI
+        // Backend provides: { id, topicId, questionText, optionA, optionB, optionC, optionD }
+        const normalizedQuestions = examResponse.questions.map(q => ({
+            id: q.id,
+            topicId: q.topicId,
+            questionText: q.questionText,
+            question: q.questionText, // Backward compatibility
+            options: [q.optionA, q.optionB, q.optionC, q.optionD],
+            optionA: q.optionA,
+            optionB: q.optionB,
+            optionC: q.optionC,
+            optionD: q.optionD
+        }));
+
+        // 4. Initialize exam state in AppState
+        window.AppState.initAptitudeExam(normalizedQuestions);
+
+        // 5. Switch to Aptitude page view and show active exam container
         const examContainer = document.getElementById('aptitude-exam-container');
         const summaryContainer = document.getElementById('aptitude-summary-container');
         if (examContainer) examContainer.classList.remove('hidden');
@@ -185,11 +219,11 @@
 
         window.Navigation.navigateTo('page-aptitude');
 
-        // 4. Render initial UI
+        // 6. Render initial UI
         renderCurrentQuestion();
         renderPalette();
 
-        // 5. Start 30-Minute Countdown Timer (1800 seconds)
+        // 7. Start 30-Minute Countdown Timer (1800 seconds)
         window.ExamTimer.start(
             1800,
             handleTimerTick,
@@ -428,50 +462,89 @@
     }
 
     /**
-     * Finalizes the Aptitude examination and calculates score
+     * Finalizes the Aptitude examination and submits answers to backend for authoritative scoring
      * @param {boolean} isAutoSubmit 
      */
-    function finishExam(isAutoSubmit = false) {
+    async function finishExam(isAutoSubmit = false) {
         // 1. Stop countdown timer
         window.ExamTimer.stop();
 
         // 2. Hide confirmation modal
         closeModal();
 
-        // 3. Compute score and statistics
         const exam = window.AppState ? window.AppState.getAptitudeExam() : null;
         if (!exam) return;
 
-        const total = exam.questions.length;
-        const answers = exam.answers;
-        let correctCount = 0;
+        const assessmentId = window.AppState ? window.AppState.getAssessmentId() : null;
+        if (!assessmentId) {
+            alert('Assessment session has expired or is invalid. Please return to Page 1.');
+            return;
+        }
 
+        // Format candidate answers for backend:
+        // [{ questionId: number, selectedOption: "A"|"B"|"C"|"D"|null }]
+        const optionLetters = ['A', 'B', 'C', 'D'];
+        const answersPayload = [];
         exam.questions.forEach(q => {
-            if (answers.hasOwnProperty(q.id) && answers[q.id] === q.correctAnswer) {
-                correctCount++;
+            if (exam.answers.hasOwnProperty(q.id) && exam.answers[q.id] !== null && exam.answers[q.id] !== undefined) {
+                const optIdx = exam.answers[q.id];
+                answersPayload.push({
+                    questionId: q.id,
+                    selectedOption: optionLetters[optIdx] || null
+                });
+            } else {
+                answersPayload.push({
+                    questionId: q.id,
+                    selectedOption: null
+                });
             }
         });
 
-        const attemptedCount = Object.keys(answers).length;
-        const wrongCount = attemptedCount - correctCount;
-        const skippedCount = total - attemptedCount;
-        const finalScore = correctCount; // 1 mark each, no negative marking
+        // Visual feedback
+        if (btnNext) {
+            btnNext.disabled = true;
+            btnNext.textContent = 'Submitting...';
+        }
 
-        const resultsPayload = {
-            totalQuestions: total,
-            attempted: attemptedCount,
-            correct: correctCount,
-            wrong: wrongCount,
-            skipped: skippedCount,
-            score: finalScore,
-            isAutoSubmit: isAutoSubmit
-        };
+        try {
+            // Call backend POST /api/aptitude/submit
+            const submitResponse = await window.ApiClient.submitAptitudeAnswers({
+                assessmentId: assessmentId,
+                answers: answersPayload
+            });
 
-        // 4. Save results to AppState
-        window.AppState.completeAptitudeExam(resultsPayload);
+            // Authoritative server-calculated results
+            const resultsPayload = {
+                totalQuestions: submitResponse.totalQuestions || 20,
+                attempted: (submitResponse.correctAnswers || 0) + (submitResponse.wrongAnswers || 0),
+                correct: submitResponse.correctAnswers || 0,
+                wrong: submitResponse.wrongAnswers || 0,
+                skipped: submitResponse.skippedAnswers !== undefined ? submitResponse.skippedAnswers : (20 - ((submitResponse.correctAnswers || 0) + (submitResponse.wrongAnswers || 0))),
+                score: submitResponse.aptitudeScore !== undefined ? submitResponse.aptitudeScore : 0,
+                isAutoSubmit: isAutoSubmit
+            };
 
-        // 5. Populate summary into Page 4 summary container
-        displayAptitudeSummary(resultsPayload);
+            // Save results to AppState
+            window.AppState.completeAptitudeExam(resultsPayload);
+
+            // Populate summary into Page 4 summary container
+            displayAptitudeSummary(resultsPayload);
+        } catch (error) {
+            console.error('[Aptitude] Submission failed:', error);
+            // On failure: remain on Page 4, show error, do not lose answers
+            if (aptitudeErrorBanner) {
+                aptitudeErrorBanner.textContent = error.message || 'Failed to submit aptitude examination. Your answers have been preserved. Please try again.';
+                aptitudeErrorBanner.classList.remove('hidden');
+                aptitudeErrorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                alert(error.message || 'Failed to submit aptitude examination. Your answers have been preserved.');
+            }
+        } finally {
+            if (btnNext) {
+                btnNext.disabled = false;
+                btnNext.textContent = 'Finish Aptitude \u2714';
+            }
+        }
     }
 
     /**
@@ -525,9 +598,20 @@
 
             const btnStartDsa = document.getElementById('btn-start-dsa-exam');
             if (btnStartDsa) {
-                btnStartDsa.addEventListener('click', () => {
+                btnStartDsa.addEventListener('click', async () => {
+                    btnStartDsa.disabled = true;
+                    btnStartDsa.textContent = 'Loading DSA Assessment...';
                     if (window.Dsa) {
-                        window.Dsa.startExam();
+                        try {
+                            const success = await window.Dsa.startExam();
+                            if (!success) {
+                                btnStartDsa.disabled = false;
+                                btnStartDsa.innerHTML = 'Start DSA Assessment &rarr;';
+                            }
+                        } catch (e) {
+                            btnStartDsa.disabled = false;
+                            btnStartDsa.innerHTML = 'Start DSA Assessment &rarr;';
+                        }
                     }
                 });
             }

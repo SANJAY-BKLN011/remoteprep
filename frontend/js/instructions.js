@@ -97,7 +97,7 @@
     /**
      * Handles "Start Examination →" button click
      */
-    function handleStartExamination() {
+    async function handleStartExamination() {
         const state = window.AppState ? window.AppState.getState() : null;
         const isAccepted = (chkAccept && chkAccept.checked) || (state && state.instructionsAccepted);
 
@@ -111,11 +111,27 @@
             window.AppState.setInstructionsAccepted(true);
         }
 
-        // Start Aptitude Examination (generates questions, initializes exam state, starts timer, navigates to Page 4)
-        if (window.Aptitude && typeof window.Aptitude.startExam === 'function') {
-            window.Aptitude.startExam();
-        } else if (window.Navigation && typeof window.Navigation.navigateTo === 'function') {
-            window.Navigation.navigateTo('page-aptitude');
+        // Visual feedback and double-click prevention
+        if (btnStart) {
+            btnStart.disabled = true;
+            btnStart.textContent = 'Generating Examination...';
+        }
+
+        try {
+            // Start Aptitude Examination (calls backend, initializes exam state, starts timer, navigates to Page 4)
+            if (window.Aptitude && typeof window.Aptitude.startExam === 'function') {
+                await window.Aptitude.startExam();
+            } else if (window.Navigation && typeof window.Navigation.navigateTo === 'function') {
+                window.Navigation.navigateTo('page-aptitude');
+            }
+        } catch (error) {
+            console.error('[Instructions] Failed to start examination:', error);
+            alert(error.message || 'Failed to start examination. Please contact the lab administrator.');
+        } finally {
+            if (btnStart) {
+                btnStart.disabled = false;
+                btnStart.innerHTML = 'Start Examination &rarr;';
+            }
         }
     }
 
