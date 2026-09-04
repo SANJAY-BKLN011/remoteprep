@@ -24,6 +24,12 @@ public interface DsaSubmissionRepository extends JpaRepository<DsaSubmission, Lo
     List<DsaSubmission> findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDesc(Long assessmentId, Long questionId);
 
     /**
+     * Retrieves all code submissions for a specific question within an assessment,
+     * ordered strictly by submittedAt descending with secondary deterministic tie-breaker id descending.
+     */
+    List<DsaSubmission> findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDescIdDesc(Long assessmentId, Long questionId);
+
+    /**
      * Counts actual code submissions for a specific question within an assessment.
      */
     long countByAssessment_IdAndQuestion_Id(Long assessmentId, Long questionId);
