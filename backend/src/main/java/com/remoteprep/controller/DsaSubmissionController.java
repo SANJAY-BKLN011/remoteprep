@@ -34,8 +34,24 @@ public class DsaSubmissionController {
         try {
             SubmitDsaCodeResponse response = dsaSubmissionService.submitCode(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if (msg != null && (msg.contains("not found") || msg.contains("Not found"))) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", msg));
+            }
+            if (msg != null && msg.contains("not assigned to assessment")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", msg));
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg));
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("not in IN_PROGRESS state")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred during submission evaluation"));
         }
     }
 }

@@ -367,13 +367,14 @@ public class DsaRunTests {
         Long assessmentId = createAssessmentWithExam("RUN_P9_COMPAT", List.of(1L));
         Long qId = getAssignedQuestionId(assessmentId, 0);
 
-        // Phase 9 submit continues to persist code with PENDING status
+        // Phase 12 submit judges code and produces a final evaluated verdict
         SubmitDsaCodeResponse subRes = dsaSubmissionService.submitCode(
                 new SubmitDsaCodeRequest(assessmentId, qId, "JAVA", "public class Main {}")
         );
 
         assertNotNull(subRes.getSubmissionId());
-        assertEquals("PENDING", subRes.getResultStatus());
+        assertNotNull(subRes.getResultStatus());
+        assertNotEquals("PENDING", subRes.getResultStatus(), "Submit should judge and produce a final verdict");
         assertEquals(1, dsaSubmissionRepository.countByAssessment_Id(assessmentId));
     }
 

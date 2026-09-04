@@ -7,11 +7,17 @@ import com.remoteprep.dto.StartAssessmentResponse;
 import com.remoteprep.dto.SubmitDsaCodeRequest;
 import com.remoteprep.dto.SubmitDsaCodeResponse;
 import com.remoteprep.entity.Assessment;
+import com.remoteprep.entity.DsaExamQuestion;
+import com.remoteprep.entity.DsaQuestion;
 import com.remoteprep.entity.DsaSubmission;
+import com.remoteprep.entity.DsaTopic;
 import com.remoteprep.repository.AssessmentRepository;
 import com.remoteprep.repository.DsaExamQuestionRepository;
+import com.remoteprep.repository.DsaQuestionRepository;
 import com.remoteprep.repository.DsaSubmissionRepository;
+import com.remoteprep.repository.DsaTopicRepository;
 import com.remoteprep.service.AssessmentService;
+import com.remoteprep.service.DsaOutputComparator;
 import com.remoteprep.service.DsaQuestionService;
 import com.remoteprep.service.DsaSubmissionService;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +28,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -46,6 +53,15 @@ public class DsaSubmissionTests {
     @Autowired
     private DsaSubmissionRepository dsaSubmissionRepository;
 
+    @Autowired
+    private DsaQuestionRepository dsaQuestionRepository;
+
+    @Autowired
+    private DsaTopicRepository dsaTopicRepository;
+
+    @Autowired
+    private DsaOutputComparator outputComparator;
+
     private Long createAssessmentWithExam(String rollNumber) {
         StartAssessmentResponse startRes = assessmentService.startAssessment(
                 new StartAssessmentRequest("Student " + rollNumber, rollNumber)
@@ -61,7 +77,7 @@ public class DsaSubmissionTests {
     }
 
     @Test
-    @DisplayName("Tests 1-4: Valid JAVA, CPP, C, PYTHON submissions return PENDING")
+    @DisplayName("Tests 1-4: Valid JAVA, CPP, C, PYTHON submissions are persisted and judged")
     void testValidSubmissionsAllLanguages() {
         Long assessmentId = createAssessmentWithExam("DSA_SUB_ALL_LANGS");
         Long q1 = getAssignedQuestionId(assessmentId, 0);
@@ -76,8 +92,11 @@ public class DsaSubmissionTests {
             assertEquals(assessmentId, res.getAssessmentId());
             assertEquals(q1, res.getQuestionId());
             assertEquals(lang, res.getLanguage());
-            assertEquals("PENDING", res.getResultStatus());
+            assertNotNull(res.getResultStatus());
+            assertNotEquals("PENDING", res.getResultStatus(), "Submit should judge and produce a final verdict");
             assertNotNull(res.getSubmittedAt());
+            assertNotNull(res.getTotalTestCases());
+            assertTrue(res.getTotalTestCases() > 0);
         }
     }
 
@@ -170,7 +189,7 @@ public class DsaSubmissionTests {
         Mockito.when(mockRepo.findById(999L)).thenReturn(Optional.of(mockAssessment));
 
         DsaSubmissionService testService = new DsaSubmissionService(
-                mockRepo, null, null, null
+                mockRepo, null, null, null, null, null, null
         );
 
         assertThrows(IllegalStateException.class, () ->
@@ -221,8 +240,9 @@ public class DsaSubmissionTests {
 
         // Test 19: First submission creates exactly one row
         assertEquals(1, dsaSubmissionRepository.countByAssessment_IdAndQuestion_Id(assessmentId, q1));
-        // Test 22: New submission starts with PENDING status
-        assertEquals("PENDING", sub1.getResultStatus());
+        // Test 22: New submission has evaluated result status
+        assertNotNull(sub1.getResultStatus());
+        assertNotEquals("PENDING", sub1.getResultStatus());
         // Test 24: submittedAt is populated
         assertNotNull(sub1.getSubmittedAt());
 
@@ -271,5 +291,310 @@ public class DsaSubmissionTests {
         assertNotNull(res.getLanguage());
         assertNotNull(res.getResultStatus());
         assertNotNull(res.getSubmittedAt());
+        assertNotNull(res.getTotalTestCases());
+    }
+
+    @Test
+    @DisplayName("Phase 12: DsaOutputComparator unit tests for whitespace, line breaks, and exact match")
+    void testOutputComparatorUnitTests() {
+        // Exact match
+        assertTrue(outputComparator.matches("hello", "hello"));
+
+        // CRLF vs LF
+        assertTrue(outputComparator.matches("line1\r\nline2", "line1\nline2"));
+        assertTrue(outputComparator.matches("5\r\n", "5\n"));
+        assertTrue(outputComparator.matches("5\n", "5"));
+
+        // Trailing whitespace on lines
+        assertTrue(outputComparator.matches("val  \nnext  ", "val\nnext"));
+        assertTrue(outputComparator.matches("[0, 1]  ", "[0, 1]"));
+
+        // Leading and trailing overall whitespace
+        assertTrue(outputComparator.matches("  result  ", "result"));
+
+        // Mismatches
+        assertFalse(outputComparator.matches("5", "6"), "Genuinely different output must not match");
+        assertFalse(outputComparator.matches("true", "false"));
+
+        // Substring matching must never match
+        assertFalse(outputComparator.matches("5", "55"), "Substring must not match");
+        assertFalse(outputComparator.matches("55", "5"), "Substring must not match");
+        assertFalse(outputComparator.matches("[0, 1]", "[0, 1, 2]"));
+
+        // Null safety
+        assertEquals("", outputComparator.normalize(null));
+        assertTrue(outputComparator.matches(null, ""));
+    }
+
+    private DsaQuestion createIsolatedJudgeQuestion() {
+        DsaTopic topic = dsaTopicRepository.findAll().get(0);
+        DsaQuestion q = new DsaQuestion();
+        q.setTopic(topic);
+        q.setDifficulty("HARD");
+        q.setTitle("Phase 12 Isolated Judge Question");
+        q.setDescription("Sum two numbers");
+        q.setTestCases("{" +
+                "\"sample\":[" +
+                "{\"input\":\"2 3\",\"expectedOutput\":\"5\"}," +
+                "{\"input\":\"10 20\",\"expectedOutput\":\"30\"}" +
+                "]," +
+                "\"hidden\":[" +
+                "{\"input\":\"100 200\",\"expectedOutput\":\"300\"}," +
+                "{\"input\":\"-5 5\",\"expectedOutput\":\"0\"}" +
+                "]" +
+                "}");
+        q.setExamples("[]");
+        return dsaQuestionRepository.save(q);
+    }
+
+    private void cleanupIsolatedJudgeQuestion(Long assessmentId, DsaExamQuestion assignment, DsaQuestion question) {
+        if (question != null && question.getId() != null) {
+            var subs = dsaSubmissionRepository.findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDesc(assessmentId, question.getId());
+            dsaSubmissionRepository.deleteAll(subs);
+        }
+        if (assignment != null && assignment.getId() != null) {
+            dsaExamQuestionRepository.delete(assignment);
+        }
+        if (question != null && question.getId() != null) {
+            dsaQuestionRepository.delete(question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: ACCEPTED solution matches all visible and hidden test cases")
+    void testAcceptedSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_ACC");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String correctJavaCode = "import java.util.Scanner;\n" +
+                    "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        Scanner sc = new Scanner(System.in);\n" +
+                    "        if (sc.hasNextInt()) {\n" +
+                    "            int a = sc.nextInt();\n" +
+                    "            int b = sc.nextInt();\n" +
+                    "            System.out.println(a + b);\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", correctJavaCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("ACCEPTED", res.getStatus());
+            assertEquals("ACCEPTED", res.getResultStatus());
+            assertEquals(4, res.getTotalTestCases());
+            assertEquals(4, res.getPassedTestCases());
+            assertEquals(0, res.getFailedTestCases());
+            assertTrue(res.getExecutionTimeMs() >= 0);
+
+            // Verify persisted row in database
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("ACCEPTED", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: WRONG_ANSWER verdict when solution outputs incorrect answer")
+    void testWrongAnswerSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_WA");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String wrongJavaCode = "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        System.out.println(99999);\n" +
+                    "    }\n" +
+                    "}";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", wrongJavaCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("WRONG_ANSWER", res.getStatus());
+            assertEquals("WRONG_ANSWER", res.getResultStatus());
+            assertTrue(res.getFailedTestCases() > 0);
+
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("WRONG_ANSWER", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: COMPILATION_ERROR verdict when code has syntax errors")
+    void testCompilationErrorSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_CE");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String invalidSyntaxCode = "public class Main { syntax_error; }";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", invalidSyntaxCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("COMPILATION_ERROR", res.getStatus());
+            assertEquals("COMPILATION_ERROR", res.getResultStatus());
+
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("COMPILATION_ERROR", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: RUNTIME_ERROR verdict when code crashes during execution")
+    void testRuntimeErrorSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_RE");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String crashCode = "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        int x = 10 / 0;\n" +
+                    "    }\n" +
+                    "}";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", crashCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("RUNTIME_ERROR", res.getStatus());
+            assertEquals("RUNTIME_ERROR", res.getResultStatus());
+
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("RUNTIME_ERROR", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: TIME_LIMIT_EXCEEDED verdict when code loops infinitely")
+    void testTimeLimitExceededSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_TLE");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String infiniteLoopCode = "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        while (true) {}\n" +
+                    "    }\n" +
+                    "}";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", infiniteLoopCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("TIME_LIMIT_EXCEEDED", res.getStatus());
+            assertEquals("TIME_LIMIT_EXCEEDED", res.getResultStatus());
+
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("TIME_LIMIT_EXCEEDED", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: OUTPUT_LIMIT_EXCEEDED verdict when code floods output stream")
+    void testOutputLimitExceededSubmission() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_OLE");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            String floodCode = "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        for (int i = 0; i < 500000; i++) {\n" +
+                    "            System.out.println(\"Flooding output buffer stream line\");\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}";
+
+            SubmitDsaCodeResponse res = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA", floodCode)
+            );
+
+            assertNotNull(res);
+            assertEquals("OUTPUT_LIMIT_EXCEEDED", res.getStatus());
+            assertEquals("OUTPUT_LIMIT_EXCEEDED", res.getResultStatus());
+
+            DsaSubmission entity = dsaSubmissionRepository.findById(res.getSubmissionId()).orElseThrow();
+            assertEquals("OUTPUT_LIMIT_EXCEEDED", entity.getResultStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 12: Multiple submissions for same question preserve all attempts with distinct verdicts")
+    void testMultipleSubmissionsWithDistinctVerdicts() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_MULTI_HIST");
+        DsaQuestion question = createIsolatedJudgeQuestion();
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, question, 3));
+
+        try {
+            // Attempt 1: Wrong Answer
+            SubmitDsaCodeResponse attempt1 = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA",
+                            "public class Main { public static void main(String[] args) { System.out.println(0); } }")
+            );
+            assertEquals("WRONG_ANSWER", attempt1.getStatus());
+
+            // Attempt 2: Accepted
+            SubmitDsaCodeResponse attempt2 = dsaSubmissionService.submitCode(
+                    new SubmitDsaCodeRequest(assessmentId, question.getId(), "JAVA",
+                            "import java.util.Scanner;\n" +
+                                    "public class Main {\n" +
+                                    "    public static void main(String[] args) {\n" +
+                                    "        Scanner sc = new Scanner(System.in);\n" +
+                                    "        if (sc.hasNextInt()) System.out.println(sc.nextInt() + sc.nextInt());\n" +
+                                    "    }\n" +
+                                    "}")
+            );
+            assertEquals("ACCEPTED", attempt2.getStatus());
+
+            assertNotEquals(attempt1.getSubmissionId(), attempt2.getSubmissionId());
+
+            // Verify both rows exist in dsa_submissions
+            assertEquals(2, dsaSubmissionRepository.countByAssessment_IdAndQuestion_Id(assessmentId, question.getId()));
+
+            DsaSubmission sub1 = dsaSubmissionRepository.findById(attempt1.getSubmissionId()).orElseThrow();
+            assertEquals("WRONG_ANSWER", sub1.getResultStatus());
+
+            DsaSubmission sub2 = dsaSubmissionRepository.findById(attempt2.getSubmissionId()).orElseThrow();
+            assertEquals("ACCEPTED", sub2.getResultStatus());
+
+            // Assessment status remains IN_PROGRESS (not completed)
+            Assessment currentAssessment = assessmentRepository.findById(assessmentId).orElseThrow();
+            assertEquals("IN_PROGRESS", currentAssessment.getStatus());
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
     }
 }
