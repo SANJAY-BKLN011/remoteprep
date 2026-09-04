@@ -128,3 +128,54 @@ Host: localhost:8080
 | **400 Bad Request** | Missing student association | `Assessment belongs to no student` |
 | **409 Conflict** | Incompletable assessment state | Aptitude exam ungenerated, Aptitude exam unsubmitted, DSA exam ungenerated, or DSA questions have 0 submissions |
 | **500 Internal Error** | Server-side execution exception | Unexpected database failure |
+
+---
+
+# RemotePrep Final Result Retrieval API (Phase 14)
+
+## Endpoint: Get Final Result
+
+`GET /api/assessment/{assessmentId}/result`
+
+### Purpose
+Provides a strictly read-only endpoint that returns the authoritative server-side final result of an assessment after completion.
+
+### Key Guarantees
+- **Strictly Read-Only**: Performs zero score calculations, database mutations, or code executions.
+- **Client-Safe**: Returns persisted summary values without exposing source code, hidden test cases, JPA internal graphs, or compiler outputs.
+- **Deterministic**: Calling the endpoint repeatedly returns identical results.
+
+### Request
+```http
+GET /api/assessment/{assessmentId}/result
+Host: localhost:8080
+```
+
+### Successful Response (HTTP 200 OK)
+```json
+{
+  "assessmentId": 1,
+  "studentId": 5,
+  "studentName": "Rahul",
+  "rollNumber": "23A01",
+  "aptitudeScore": 17,
+  "aptitudeTotal": 20,
+  "dsaScore": 3,
+  "dsaTotal": 3,
+  "totalScore": 20,
+  "totalMarks": 23,
+  "status": "COMPLETED",
+  "startedAt": "2026-09-04T16:00:00",
+  "completedAt": "2026-09-04T16:30:00"
+}
+```
+
+### Error Responses
+
+| Status Code | Condition | Example Response |
+| :--- | :--- | :--- |
+| **404 Not Found** | Assessment ID does not exist in the database | `{"error": "Assessment not found with ID: 999"}` |
+| **400 Bad Request** | Assessment is missing student association | `{"error": "Assessment belongs to no student"}` |
+| **409 Conflict** | Assessment status is not `COMPLETED` (e.g. `IN_PROGRESS`) | `{"error": "Assessment is not in COMPLETED state (current status: IN_PROGRESS)"}` |
+| **500 Internal Server Error** | Unexpected server failure | `{"error": "An unexpected error occurred while retrieving the assessment result"}` |
+

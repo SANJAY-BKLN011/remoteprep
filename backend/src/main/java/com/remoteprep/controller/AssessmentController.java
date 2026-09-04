@@ -1,9 +1,11 @@
 package com.remoteprep.controller;
 
+import com.remoteprep.dto.AssessmentResultResponse;
 import com.remoteprep.dto.CompleteAssessmentResponse;
 import com.remoteprep.service.AssessmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,6 +51,33 @@ public class AssessmentController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "An unexpected error occurred during assessment completion"));
+        }
+    }
+
+    /**
+     * Retrieves the authoritative final result of a completed assessment.
+     * GET /api/assessment/{assessmentId}/result
+     */
+    @GetMapping("/{assessmentId}/result")
+    public ResponseEntity<?> getAssessmentResult(@PathVariable Long assessmentId) {
+        try {
+            AssessmentResultResponse response = assessmentService.getAssessmentResult(assessmentId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if (msg != null && (msg.contains("not found") || msg.contains("Not found"))) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", msg));
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", msg));
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("no student")) {
+                return ResponseEntity.badRequest().body(Map.of("error", msg));
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", msg));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred while retrieving the assessment result"));
         }
     }
 }

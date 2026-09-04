@@ -1,5 +1,6 @@
 package com.remoteprep.service;
 
+import com.remoteprep.dto.AssessmentResultResponse;
 import com.remoteprep.dto.CompleteAssessmentResponse;
 import com.remoteprep.dto.StartAssessmentRequest;
 import com.remoteprep.dto.StartAssessmentResponse;
@@ -197,6 +198,48 @@ public class AssessmentService {
                 23,
                 assessment.getStatus(),
                 completedAt
+        );
+    }
+
+    /**
+     * Retrieves the finalized result of a completed assessment.
+     * Strictly read-only: does not calculate scores, mutate database records, or execute candidate code.
+     *
+     * @param assessmentId ID of the assessment to retrieve
+     * @return client-safe final result DTO
+     */
+    @Transactional(readOnly = true)
+    public AssessmentResultResponse getAssessmentResult(Long assessmentId) {
+        if (assessmentId == null) {
+            throw new IllegalArgumentException("assessmentId must be provided");
+        }
+
+        Assessment assessment = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found with ID: " + assessmentId));
+
+        Student student = assessment.getStudent();
+        if (student == null) {
+            throw new IllegalStateException("Assessment belongs to no student");
+        }
+
+        if (!"COMPLETED".equalsIgnoreCase(assessment.getStatus())) {
+            throw new IllegalStateException("Assessment is not in COMPLETED state (current status: " + assessment.getStatus() + ")");
+        }
+
+        return new AssessmentResultResponse(
+                assessment.getId(),
+                student.getId(),
+                student.getName(),
+                student.getRollNumber(),
+                assessment.getAptitudeScore() != null ? assessment.getAptitudeScore() : 0,
+                20,
+                assessment.getDsaScore() != null ? assessment.getDsaScore() : 0,
+                3,
+                assessment.getTotalScore() != null ? assessment.getTotalScore() : 0,
+                23,
+                assessment.getStatus(),
+                assessment.getStartedAt(),
+                assessment.getCompletedAt()
         );
     }
 }
