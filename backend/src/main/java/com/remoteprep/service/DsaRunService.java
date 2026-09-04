@@ -167,17 +167,20 @@ public class DsaRunService {
     private List<DemoTestCase> extractDemoTestCases(DsaQuestion question) {
         List<DemoTestCase> cases = new ArrayList<>();
 
-        // 1. Try parsing sample test cases from test_cases column
+        // 1. Prefer existing test_cases column if it contains properly structured demo cases
         String testCasesJson = question.getTestCases();
         if (testCasesJson != null && !testCasesJson.isBlank()) {
             try {
                 JsonNode root = objectMapper.readTree(testCasesJson);
-                JsonNode sampleNode = root.get("sample");
+                JsonNode sampleNode = root.isObject() ? root.get("sample") : (root.isArray() ? root : null);
                 if (sampleNode != null && sampleNode.isArray()) {
                     for (JsonNode node : sampleNode) {
                         String input = node.has("input") ? node.get("input").asText() : "";
-                        String expectedOutput = node.has("expectedOutput") ? node.get("expectedOutput").asText() : "";
-                        cases.add(new DemoTestCase(input, expectedOutput));
+                        String expectedOutput = node.has("expectedOutput") ? node.get("expectedOutput").asText()
+                                : (node.has("output") ? node.get("output").asText() : "");
+                        if (!input.isBlank() || !expectedOutput.isBlank()) {
+                            cases.add(new DemoTestCase(input, expectedOutput));
+                        }
                         if (cases.size() == 2) break;
                     }
                 }
@@ -186,28 +189,43 @@ public class DsaRunService {
             }
         }
 
-        // 2. Fallback: Parse from examples column
-        if (cases.size() < 2 && question.getExamples() != null && !question.getExamples().isBlank()) {
-            try {
-                JsonNode examplesNode = objectMapper.readTree(question.getExamples());
-                if (examplesNode.isArray()) {
-                    for (JsonNode node : examplesNode) {
-                        if (cases.size() >= 2) break;
-                        String input = node.has("input") ? node.get("input").asText() : "";
-                        String output = node.has("output") ? node.get("output").asText()
-                                : (node.has("expectedOutput") ? node.get("expectedOutput").asText() : "");
-                        cases.add(new DemoTestCase(input, output));
+        // 2. Fall back to examples only when test_cases did not yield at least 2 demo cases
+        if (cases.size() < 2) {
+            List<DemoTestCase> exampleCases = new ArrayList<>();
+            if (question.getExamples() != null && !question.getExamples().isBlank()) {
+                try {
+                    JsonNode examplesNode = objectMapper.readTree(question.getExamples());
+                    if (examplesNode.isArray()) {
+                        for (JsonNode node : examplesNode) {
+                            String input = node.has("input") ? node.get("input").asText() : "";
+                            String output = node.has("output") ? node.get("output").asText()
+                                    : (node.has("expectedOutput") ? node.get("expectedOutput").asText() : "");
+                            if (!input.isBlank() || !output.isBlank()) {
+                                exampleCases.add(new DemoTestCase(input, output));
+                            }
+                            if (exampleCases.size() == 2) break;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("Failed to parse examples JSON for question ID {}: {}", question.getId(), e.getMessage());
+                }
+            }
+
+            if (exampleCases.size() >= 2) {
+                cases = exampleCases;
+            } else {
+                for (DemoTestCase ec : exampleCases) {
+                    if (cases.size() < 2) {
+                        cases.add(ec);
                     }
                 }
-            } catch (Exception e) {
-                log.debug("Failed to parse examples JSON for question ID {}: {}", question.getId(), e.getMessage());
             }
         }
 
-        // 3. Guarantee exactly two demo test cases
-        while (cases.size() < 2) {
-            int caseNum = cases.size() + 1;
-            cases.add(new DemoTestCase("Sample Input " + caseNum, "Sample Output " + caseNum));
+        // 3. If fewer than 2 genuine demo cases exist: do NOT invent test cases, throw clear error
+        if (cases.size() < 2) {
+            throw new IllegalStateException("DSA Question ID " + question.getId() +
+                    " does not have at least two demo test cases configured (found " + cases.size() + ")");
         }
 
         return cases;

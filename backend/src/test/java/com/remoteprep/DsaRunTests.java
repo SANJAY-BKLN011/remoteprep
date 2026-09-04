@@ -1,5 +1,6 @@
 package com.remoteprep;
 
+import com.remoteprep.controller.DsaRunController;
 import com.remoteprep.dto.DsaRunRequest;
 import com.remoteprep.dto.DsaRunResponse;
 import com.remoteprep.dto.DsaRunTestCaseResult;
@@ -10,6 +11,8 @@ import com.remoteprep.dto.SubmitDsaCodeRequest;
 import com.remoteprep.dto.SubmitDsaCodeResponse;
 import com.remoteprep.entity.Assessment;
 import com.remoteprep.entity.DsaExamQuestion;
+import com.remoteprep.entity.DsaQuestion;
+import com.remoteprep.entity.DsaTopic;
 import com.remoteprep.execution.ExecutionProperties;
 import com.remoteprep.execution.ExecutionStatus;
 import com.remoteprep.execution.ToolAvailabilityChecker;
@@ -17,6 +20,7 @@ import com.remoteprep.repository.AssessmentRepository;
 import com.remoteprep.repository.DsaExamQuestionRepository;
 import com.remoteprep.repository.DsaQuestionRepository;
 import com.remoteprep.repository.DsaSubmissionRepository;
+import com.remoteprep.repository.DsaTopicRepository;
 import com.remoteprep.service.AssessmentService;
 import com.remoteprep.service.DsaQuestionService;
 import com.remoteprep.service.DsaRunService;
@@ -26,13 +30,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 public class DsaRunTests {
+
+    @Autowired
+    private DsaRunController dsaRunController;
 
     @Autowired
     private DsaRunService dsaRunService;
@@ -42,6 +52,9 @@ public class DsaRunTests {
 
     @Autowired
     private DsaSubmissionService dsaSubmissionService;
+
+    @Autowired
+    private DsaTopicRepository dsaTopicRepository;
 
     @Autowired
     private AssessmentService assessmentService;
@@ -112,6 +125,8 @@ public class DsaRunTests {
             assertEquals(i + 1, tc.getTestCaseNumber());
             assertNotNull(tc.getInput());
             assertNotNull(tc.getExpectedOutput());
+            assertFalse(tc.getInput().contains("Sample Input"), "Input must be genuine and not placeholder");
+            assertFalse(tc.getExpectedOutput().contains("Sample Output"), "Expected output must be genuine and not placeholder");
             assertNotNull(tc.getActualOutput());
             assertEquals("SUCCESS", tc.getStatus());
             assertNotNull(tc.getExecutionTimeMs());
@@ -360,5 +375,125 @@ public class DsaRunTests {
         assertNotNull(subRes.getSubmissionId());
         assertEquals("PENDING", subRes.getResultStatus());
         assertEquals(1, dsaSubmissionRepository.countByAssessment_Id(assessmentId));
+    }
+
+    @Test
+    @DisplayName("Phase 11 Fix: Question with < 2 demo test cases throws clear error, executes no code, creates no submission, and does not alter score")
+    void testFewerThanTwoDemoCasesRejection() {
+        Long assessmentId = createAssessmentWithExam("RUN_ERR_TC_01", List.of(1L));
+
+        DsaTopic topic = dsaTopicRepository.findAll().get(0);
+        DsaQuestion badQuestion = new DsaQuestion();
+        badQuestion.setTopic(topic);
+        badQuestion.setDifficulty("HARD");
+        badQuestion.setTitle("Bad Question No Demo Cases");
+        badQuestion.setDescription("Problem without demo test cases");
+        badQuestion.setTestCases("{\"sample\":[],\"hidden\":[]}");
+        badQuestion.setExamples("[]");
+        badQuestion = dsaQuestionRepository.save(badQuestion);
+
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = new DsaExamQuestion(assessment, badQuestion, 3);
+        assignment = dsaExamQuestionRepository.save(assignment);
+
+        try {
+            long submissionsBefore = dsaSubmissionRepository.countByAssessment_Id(assessmentId);
+            int scoreBefore = assessment.getDsaScore();
+
+            final Long badQId = badQuestion.getId();
+            DsaRunRequest request = new DsaRunRequest(assessmentId, badQId, "JAVA", "public class Main { public static void main(String[] args) {} }");
+
+            // 1. Service call throws IllegalStateException with clear message
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () -> dsaRunService.runCode(request));
+            assertTrue(ex.getMessage().contains("does not have at least two demo test cases configured"),
+                    "Exception message must clearly state that < 2 demo test cases are configured");
+
+            // 2. Controller returns 400 Bad Request with error body
+            ResponseEntity<?> controllerRes = dsaRunController.runCode(request);
+            assertEquals(HttpStatus.BAD_REQUEST, controllerRes.getStatusCode());
+            assertNotNull(controllerRes.getBody());
+            assertTrue(controllerRes.getBody().toString().contains("does not have at least two demo test cases configured"));
+
+            // 3. No submission persisted
+            assertEquals(submissionsBefore, dsaSubmissionRepository.countByAssessment_Id(assessmentId),
+                    "No submission should be created when demo test cases are insufficient");
+
+            // 4. No score modification
+            Assessment assessmentAfter = assessmentRepository.findById(assessmentId).orElseThrow();
+            assertEquals(scoreBefore, assessmentAfter.getDsaScore(), "Assessment score must not change");
+        } finally {
+            dsaExamQuestionRepository.delete(assignment);
+            dsaQuestionRepository.delete(badQuestion);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 11 Fix: Fallback to examples column when test_cases column has < 2 demo cases")
+    void testFallbackToExamplesWhenTestCasesEmpty() {
+        Long assessmentId = createAssessmentWithExam("RUN_FB_TC_01", List.of(1L));
+
+        DsaTopic topic = dsaTopicRepository.findAll().get(0);
+        DsaQuestion fbQuestion = new DsaQuestion();
+        fbQuestion.setTopic(topic);
+        fbQuestion.setDifficulty("HARD");
+        fbQuestion.setTitle("Fallback Examples Question");
+        fbQuestion.setDescription("Problem relying on examples fallback");
+        fbQuestion.setTestCases("");
+        fbQuestion.setExamples("[{\"input\":\"10 20\",\"output\":\"30\"},{\"input\":\"5 7\",\"output\":\"12\"}]");
+        fbQuestion = dsaQuestionRepository.save(fbQuestion);
+
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = new DsaExamQuestion(assessment, fbQuestion, 3);
+        assignment = dsaExamQuestionRepository.save(assignment);
+
+        try {
+            String javaCode = "import java.util.Scanner;\n" +
+                    "public class Main {\n" +
+                    "    public static void main(String[] args) {\n" +
+                    "        Scanner sc = new Scanner(System.in);\n" +
+                    "        int a = sc.nextInt();\n" +
+                    "        int b = sc.nextInt();\n" +
+                    "        System.out.println(a + b);\n" +
+                    "    }\n" +
+                    "}";
+
+            DsaRunResponse response = dsaRunService.runCode(new DsaRunRequest(assessmentId, fbQuestion.getId(), "JAVA", javaCode));
+            assertNotNull(response);
+            assertEquals(2, response.getTestCases().size());
+            assertEquals("10 20", response.getTestCases().get(0).getInput());
+            assertEquals("30", response.getTestCases().get(0).getExpectedOutput());
+            assertEquals("5 7", response.getTestCases().get(1).getInput());
+            assertEquals("12", response.getTestCases().get(1).getExpectedOutput());
+            assertEquals("SUCCESS", response.getTestCases().get(0).getStatus());
+            assertEquals("SUCCESS", response.getTestCases().get(1).getStatus());
+        } finally {
+            dsaExamQuestionRepository.delete(assignment);
+            dsaQuestionRepository.delete(fbQuestion);
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 11 Fix: Validate that all assigned questions have genuine demo test cases and NEVER fake placeholders")
+    void testNoFakePlaceholdersInAnyAssignedQuestion() {
+        Long assessmentId = createAssessmentWithExam("RUN_NO_FAKE_01", List.of(1L, 2L, 3L, 4L, 5L));
+        List<DsaExamQuestion> assigned = dsaExamQuestionRepository.findByAssessment_IdOrderByQuestionOrderAsc(assessmentId);
+        assertFalse(assigned.isEmpty());
+
+        for (DsaExamQuestion eq : assigned) {
+            DsaRunResponse response = dsaRunService.runCode(new DsaRunRequest(
+                    assessmentId, eq.getQuestion().getId(), "JAVA",
+                    "public class Main { public static void main(String[] args) {} }"
+            ));
+            assertNotNull(response);
+            assertEquals(2, response.getTestCases().size(), "Must have exactly 2 demo cases");
+            for (DsaRunTestCaseResult tc : response.getTestCases()) {
+                assertFalse(tc.getInput().contains("Sample Input"),
+                        "Must NOT contain fake 'Sample Input' placeholder!");
+                assertFalse(tc.getExpectedOutput().contains("Sample Output"),
+                        "Must NOT contain fake 'Sample Output' placeholder!");
+                assertFalse(tc.getInput().isBlank(), "Input should be genuine and non-blank");
+                assertFalse(tc.getExpectedOutput().isBlank(), "Expected output should be genuine and non-blank");
+            }
+        }
     }
 }
