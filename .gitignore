@@ -14,6 +14,11 @@ desktop.ini
 
 # Logs
 *.log
+logs/
+**/logs/
+
+# Runtime PID files
+*.pid
 
 # Maven & Java build artifacts
 target/

@@ -4,10 +4,28 @@
  * Manages all HTTP communication between the RemotePrep frontend and the Spring Boot backend.
  * Provides uniform error handling, request/response lifecycle, and offline lab resilience.
  */
-
 (function () {
-    // Single centralized backend configuration value
-    const API_BASE_URL = 'http://localhost:8080';
+    /**
+     * Resolves the API base URL dynamically:
+     * 1. If explicit window.REMOTEPREP_API_BASE is specified, use it.
+     * 2. When served directly by Spring Boot (port 8080), use '' for same-origin relative requests.
+     * 3. Fallback for separate development static servers (e.g. port 3000, 5500): 'http://localhost:8080'.
+     */
+    function resolveApiBaseUrl() {
+        if (typeof window !== 'undefined' && window.REMOTEPREP_API_BASE) {
+            return window.REMOTEPREP_API_BASE;
+        }
+        if (typeof window !== 'undefined' && window.location) {
+            const port = window.location.port;
+            // If served directly from Spring Boot embedded server on port 8080
+            if (port === '8080' || window.location.host.endsWith(':8080')) {
+                return '';
+            }
+        }
+        return 'http://localhost:8080';
+    }
+
+    const API_BASE_URL = resolveApiBaseUrl();
 
     /**
      * Executes an HTTP request against the Spring Boot backend with uniform error handling.

@@ -99,7 +99,7 @@ The application adheres strictly to the offline computer laboratory constraints:
 Ensure MySQL is running on port 3306 with the `remoteprep` database:
 ```powershell
 cd "D:\projects cse\backend"
-$env:DB_PASSWORD="sanjay@123"
+$env:DB_PASSWORD="YOUR_LOCAL_DATABASE_PASSWORD"
 mvn spring-boot:run
 ```
 

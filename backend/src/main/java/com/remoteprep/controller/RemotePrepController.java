@@ -11,12 +11,14 @@ import java.util.Map;
 public class RemotePrepController {
 
     /**
-     * Test endpoint to verify that the Spring Boot backend server is active and responding.
-     * Accessible at: GET http://localhost:8080/api/test
+     * Test and health check endpoint to verify that the Spring Boot backend server is active and responding.
+     * Accessible at:
+     *   GET http://localhost:8080/api/test
+     *   GET http://localhost:8080/api/health
      */
-    @GetMapping("/test")
+    @GetMapping({"/test", "/health"})
     public Map<String, String> test() {
-        return Map.of("message", "RemotePrep backend is working");
+        return Map.of("status", "UP", "message", "RemotePrep backend is working");
     }
 
 }
