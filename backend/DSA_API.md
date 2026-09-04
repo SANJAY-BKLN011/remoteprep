@@ -79,6 +79,8 @@ Client Request
       ↓
 Validate Request & Assessment Assignment
       ↓
+Validate & Extract Complete Test Case Suite (Visible + Hidden)
+      ↓
 Create New Submission Record (result_status = 'PENDING')
       ↓
 Commit Initial Record to Database

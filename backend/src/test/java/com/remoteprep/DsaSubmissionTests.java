@@ -20,11 +20,14 @@ import com.remoteprep.service.AssessmentService;
 import com.remoteprep.service.DsaOutputComparator;
 import com.remoteprep.service.DsaQuestionService;
 import com.remoteprep.service.DsaSubmissionService;
+import com.remoteprep.controller.DsaSubmissionController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +37,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 public class DsaSubmissionTests {
+
+    @Autowired
+    private DsaSubmissionController dsaSubmissionController;
 
     @Autowired
     private DsaSubmissionService dsaSubmissionService;
@@ -595,6 +601,100 @@ public class DsaSubmissionTests {
             assertEquals("IN_PROGRESS", currentAssessment.getStatus());
         } finally {
             cleanupIsolatedJudgeQuestion(assessmentId, assignment, question);
+        }
+    }
+
+    @Test
+    @DisplayName("Fix: No test cases configured rejects submit without executing code or leaving PENDING submission")
+    void testNoTestCasesConfiguredRejectsSubmit() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_NO_TC");
+        DsaTopic topic = dsaTopicRepository.findAll().get(0);
+        DsaQuestion emptyQuestion = new DsaQuestion();
+        emptyQuestion.setTopic(topic);
+        emptyQuestion.setDifficulty("EASY");
+        emptyQuestion.setTitle("Question with no test cases");
+        emptyQuestion.setDescription("Problem without test cases");
+        emptyQuestion.setTestCases(null);
+        emptyQuestion.setExamples(null);
+        emptyQuestion = dsaQuestionRepository.save(emptyQuestion);
+
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, emptyQuestion, 3));
+
+        try {
+            long submissionsBefore = dsaSubmissionRepository.countByAssessment_Id(assessmentId);
+            SubmitDsaCodeRequest request = new SubmitDsaCodeRequest(
+                    assessmentId, emptyQuestion.getId(), "JAVA",
+                    "public class Main { public static void main(String[] args) { System.out.println(1); } }"
+            );
+
+            // 1. Service call throws IllegalStateException with clear message
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                    dsaSubmissionService.submitCode(request)
+            );
+            assertTrue(ex.getMessage().contains("does not have any test cases configured"),
+                    "Exception message must indicate question does not have test cases configured");
+
+            // 2. Controller returns 400 Bad Request
+            ResponseEntity<?> responseEntity = dsaSubmissionController.submitCode(request);
+            assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+            assertNotNull(responseEntity.getBody());
+            assertTrue(responseEntity.getBody().toString().contains("does not have any test cases configured"));
+
+            // 3. No submission record created; no PENDING record left
+            assertEquals(submissionsBefore, dsaSubmissionRepository.countByAssessment_Id(assessmentId));
+            assertEquals(0, dsaSubmissionRepository.countByAssessment_IdAndQuestion_Id(assessmentId, emptyQuestion.getId()));
+            var pendingSubs = dsaSubmissionRepository.findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDesc(assessmentId, emptyQuestion.getId());
+            assertTrue(pendingSubs.isEmpty(), "No submission, including PENDING status, must be persisted when test cases are missing");
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, emptyQuestion);
+        }
+    }
+
+    @Test
+    @DisplayName("Fix: Malformed test_cases JSON fails clearly without executing code or leaving PENDING submission")
+    void testMalformedTestCasesJsonRejectsSubmit() {
+        Long assessmentId = createAssessmentWithExam("DSA_SUB_MALFORMED");
+        DsaTopic topic = dsaTopicRepository.findAll().get(0);
+        DsaQuestion malformedQuestion = new DsaQuestion();
+        malformedQuestion.setTopic(topic);
+        malformedQuestion.setDifficulty("MEDIUM");
+        malformedQuestion.setTitle("Question with malformed test cases");
+        malformedQuestion.setDescription("Problem with malformed json");
+        malformedQuestion.setTestCases("{ \"sample\": [ { unclosed json");
+        malformedQuestion.setExamples("[]");
+        malformedQuestion = dsaQuestionRepository.save(malformedQuestion);
+
+        Assessment assessment = assessmentRepository.findById(assessmentId).orElseThrow();
+        DsaExamQuestion assignment = dsaExamQuestionRepository.save(new DsaExamQuestion(assessment, malformedQuestion, 3));
+
+        try {
+            long submissionsBefore = dsaSubmissionRepository.countByAssessment_Id(assessmentId);
+            SubmitDsaCodeRequest request = new SubmitDsaCodeRequest(
+                    assessmentId, malformedQuestion.getId(), "JAVA",
+                    "public class Main { public static void main(String[] args) { System.out.println(1); } }"
+            );
+
+            // 1. Service call throws IllegalStateException with clear message
+            IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                    dsaSubmissionService.submitCode(request)
+            );
+            assertTrue(ex.getMessage().contains("malformed test cases configuration"),
+                    "Exception message must clearly indicate malformed test cases configuration");
+
+            // 2. Controller returns 400 Bad Request
+            ResponseEntity<?> responseEntity = dsaSubmissionController.submitCode(request);
+            assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+            assertNotNull(responseEntity.getBody());
+            assertTrue(responseEntity.getBody().toString().contains("malformed test cases configuration"));
+
+            // 3. No submission record created; no PENDING record left
+            assertEquals(submissionsBefore, dsaSubmissionRepository.countByAssessment_Id(assessmentId));
+            assertEquals(0, dsaSubmissionRepository.countByAssessment_IdAndQuestion_Id(assessmentId, malformedQuestion.getId()));
+            var pendingSubs = dsaSubmissionRepository.findByAssessment_IdAndQuestion_IdOrderBySubmittedAtDesc(assessmentId, malformedQuestion.getId());
+            assertTrue(pendingSubs.isEmpty(), "No submission, including PENDING status, must be persisted when test cases JSON is malformed");
+        } finally {
+            cleanupIsolatedJudgeQuestion(assessmentId, assignment, malformedQuestion);
         }
     }
 }

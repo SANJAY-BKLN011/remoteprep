@@ -126,7 +126,11 @@ public class DsaSubmissionService {
             throw new IllegalArgumentException("Question ID " + questionId + " is not assigned to assessment ID " + assessmentId);
         }
 
-        // 6. Persist new submission in dsa_submissions with PENDING status
+        // 6. Extract and validate ALL final test cases (visible samples and hidden cases)
+        // Must be validated before persisting submission or executing code
+        List<JudgeTestCase> allTestCases = extractAllTestCases(question);
+
+        // 7. Persist new submission in dsa_submissions with PENDING status
         DsaSubmission submission = new DsaSubmission();
         submission.setAssessment(assessment);
         submission.setQuestion(question);
@@ -137,8 +141,6 @@ public class DsaSubmissionService {
 
         submission = dsaSubmissionRepository.save(submission);
 
-        // 7. Extract ALL final test cases (visible samples and hidden cases)
-        List<JudgeTestCase> allTestCases = extractAllTestCases(question);
         int totalTestCases = allTestCases.size();
         int passedTestCases = 0;
         long totalExecutionTimeMs = 0L;
@@ -183,15 +185,14 @@ public class DsaSubmissionService {
         } catch (Exception e) {
             log.error("Unexpected error judging submission ID {}: {}", submission.getId(), e.getMessage(), e);
             finalVerdict = "EXECUTION_ERROR";
+        } finally {
+            submission.setResultStatus(finalVerdict);
+            submission = dsaSubmissionRepository.save(submission);
         }
 
         int failedTestCases = "ACCEPTED".equals(finalVerdict) ? 0 : (totalTestCases - passedTestCases);
 
-        // 9. Update the submission row with the final evaluation verdict
-        submission.setResultStatus(finalVerdict);
-        dsaSubmissionRepository.save(submission);
-
-        // 10. Return safe response without exposing hidden test data
+        // 9. Return safe response without exposing hidden test data
         return new SubmitDsaCodeResponse(
                 submission.getId(),
                 assessment.getId(),
@@ -212,56 +213,84 @@ public class DsaSubmissionService {
         // 1. Try parsing test_cases column (contains "sample" and "hidden")
         String testCasesJson = question.getTestCases();
         if (testCasesJson != null && !testCasesJson.isBlank()) {
+            JsonNode root;
             try {
-                JsonNode root = objectMapper.readTree(testCasesJson);
-
-                // Sample (visible) cases
-                JsonNode sampleNode = root.isObject() ? root.get("sample") : (root.isArray() ? root : null);
-                if (sampleNode != null && sampleNode.isArray()) {
-                    for (JsonNode node : sampleNode) {
-                        String input = node.has("input") ? node.get("input").asText() : "";
-                        String expectedOutput = node.has("expectedOutput") ? node.get("expectedOutput").asText()
-                                : (node.has("output") ? node.get("output").asText() : "");
-                        if (!input.isBlank() || !expectedOutput.isBlank()) {
-                            cases.add(new JudgeTestCase(input, expectedOutput, false));
-                        }
-                    }
-                }
-
-                // Hidden cases
-                JsonNode hiddenNode = root.isObject() ? root.get("hidden") : null;
-                if (hiddenNode != null && hiddenNode.isArray()) {
-                    for (JsonNode node : hiddenNode) {
-                        String input = node.has("input") ? node.get("input").asText() : "";
-                        String expectedOutput = node.has("expectedOutput") ? node.get("expectedOutput").asText()
-                                : (node.has("output") ? node.get("output").asText() : "");
-                        if (!input.isBlank() || !expectedOutput.isBlank()) {
-                            cases.add(new JudgeTestCase(input, expectedOutput, true));
-                        }
-                    }
-                }
+                root = objectMapper.readTree(testCasesJson);
             } catch (Exception e) {
-                log.debug("Failed to parse test_cases JSON for question ID {}: {}", question.getId(), e.getMessage());
+                log.error("Failed to parse test_cases JSON for question ID {}: {}", question.getId(), e.getMessage());
+                throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+            }
+
+            if (!root.isObject() && !root.isArray()) {
+                throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+            }
+
+            // Sample (visible) cases
+            JsonNode sampleNode = root.isObject() ? root.get("sample") : (root.isArray() ? root : null);
+            if (sampleNode != null && !sampleNode.isNull()) {
+                if (!sampleNode.isArray()) {
+                    throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+                }
+                for (JsonNode node : sampleNode) {
+                    if (!node.isObject()) {
+                        throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+                    }
+                    String input = node.has("input") && !node.get("input").isNull() ? node.get("input").asText() : "";
+                    String expectedOutput = node.has("expectedOutput") && !node.get("expectedOutput").isNull()
+                            ? node.get("expectedOutput").asText()
+                            : (node.has("output") && !node.get("output").isNull() ? node.get("output").asText() : "");
+                    if (!input.isBlank() || !expectedOutput.isBlank()) {
+                        cases.add(new JudgeTestCase(input, expectedOutput, false));
+                    }
+                }
+            }
+
+            // Hidden cases
+            JsonNode hiddenNode = root.isObject() ? root.get("hidden") : null;
+            if (hiddenNode != null && !hiddenNode.isNull()) {
+                if (!hiddenNode.isArray()) {
+                    throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+                }
+                for (JsonNode node : hiddenNode) {
+                    if (!node.isObject()) {
+                        throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed test cases configuration");
+                    }
+                    String input = node.has("input") && !node.get("input").isNull() ? node.get("input").asText() : "";
+                    String expectedOutput = node.has("expectedOutput") && !node.get("expectedOutput").isNull()
+                            ? node.get("expectedOutput").asText()
+                            : (node.has("output") && !node.get("output").isNull() ? node.get("output").asText() : "");
+                    if (!input.isBlank() || !expectedOutput.isBlank()) {
+                        cases.add(new JudgeTestCase(input, expectedOutput, true));
+                    }
+                }
             }
         }
 
         // 2. Fallback: Parse visible cases from examples column if no samples in test_cases
         boolean hasVisibleCases = cases.stream().anyMatch(c -> !c.isHidden());
         if (!hasVisibleCases && question.getExamples() != null && !question.getExamples().isBlank()) {
+            JsonNode examplesNode;
             try {
-                JsonNode examplesNode = objectMapper.readTree(question.getExamples());
-                if (examplesNode.isArray()) {
-                    for (JsonNode node : examplesNode) {
-                        String input = node.has("input") ? node.get("input").asText() : "";
-                        String output = node.has("output") ? node.get("output").asText()
-                                : (node.has("expectedOutput") ? node.get("expectedOutput").asText() : "");
-                        if (!input.isBlank() || !output.isBlank()) {
-                            cases.add(new JudgeTestCase(input, output, false));
-                        }
-                    }
-                }
+                examplesNode = objectMapper.readTree(question.getExamples());
             } catch (Exception e) {
-                log.debug("Failed to parse examples JSON for question ID {}: {}", question.getId(), e.getMessage());
+                log.error("Failed to parse examples JSON for question ID {}: {}", question.getId(), e.getMessage());
+                throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed examples configuration");
+            }
+
+            if (!examplesNode.isArray()) {
+                throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed examples configuration");
+            }
+
+            for (JsonNode node : examplesNode) {
+                if (!node.isObject()) {
+                    throw new IllegalStateException("DSA Question ID " + question.getId() + " has malformed examples configuration");
+                }
+                String input = node.has("input") && !node.get("input").isNull() ? node.get("input").asText() : "";
+                String output = node.has("output") && !node.get("output").isNull() ? node.get("output").asText()
+                        : (node.has("expectedOutput") && !node.get("expectedOutput").isNull() ? node.get("expectedOutput").asText() : "");
+                if (!input.isBlank() || !output.isBlank()) {
+                    cases.add(new JudgeTestCase(input, output, false));
+                }
             }
         }
 
