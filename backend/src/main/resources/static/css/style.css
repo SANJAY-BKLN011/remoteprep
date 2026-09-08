@@ -1,0 +1,191 @@
+/* ==========================================================================
+   Global Theme, Layout and Typography
+   Professional Orange & Yellow Palette for Offline Computer Lab
+   ========================================================================== */
+
+:root {
+    /* Color Palette - Orange & Yellow System */
+    --color-primary: #F57C00;          /* Primary Orange */
+    --color-primary-dark: #E65100;     /* Dark Orange (Headers & Hover) */
+    --color-accent-yellow: #FFC107;    /* Accent Yellow */
+    --color-light-yellow: #FFF8E1;     /* Light Yellow (Selected states / Highlights) */
+    --color-background: #FFFDF8;       /* Very Light Cream Page Background */
+    --color-surface: #FFFFFF;          /* Pure White Card Surface */
+    --color-border: #E0E0E0;          /* Subtle Grey Border */
+    --color-border-hover: #BDBDBD;    /* Border Hover */
+    --color-border-active: #F57C00;   /* Active Selection Border */
+    --color-text-main: #263238;        /* Dark Charcoal Primary Text */
+    --color-text-muted: #607D8B;       /* Slate Grey Secondary Text */
+    
+    /* Feedback States */
+    --color-error: #C62828;            /* Error Red */
+    --color-error-bg: #FFEBEE;         /* Error Background */
+    --color-error-border: #FFCDD2;     /* Error Border */
+    --color-success: #2E7D32;          /* Success Green */
+    --color-success-bg: #E8F5E9;       /* Success Background */
+    --color-success-border: #C8E6C9;   /* Success Border */
+    --color-warning: #FFA000;          /* Warning Amber */
+
+    /* Typography */
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", sans-serif;
+    --font-family-mono: "Consolas", "Courier New", Courier, monospace;
+
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* Borders and Shadows */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 9999px;
+    --shadow-sm: 0 1px 3px rgba(38, 50, 56, 0.08);
+    --shadow-md: 0 4px 8px rgba(38, 50, 56, 0.08), 0 2px 4px rgba(38, 50, 56, 0.04);
+    --shadow-lg: 0 10px 20px rgba(38, 50, 56, 0.1);
+}
+
+body {
+    background-color: var(--color-background);
+    color: var(--color-text-main);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* App Header */
+.app-header {
+    background-color: var(--color-surface);
+    border-bottom: 2px solid #FFE0B2;
+    padding: var(--space-md) var(--space-xl);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.brand-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: #FFFFFF;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--color-accent-yellow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(230, 81, 0, 0.25);
+}
+
+.brand-text h1 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    line-height: 1.2;
+}
+
+.brand-text p {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.offline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    background-color: var(--color-success-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-border);
+    border-radius: var(--radius-pill);
+}
+
+.offline-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-success);
+    border-radius: 50%;
+}
+
+.student-badge-info {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    background-color: var(--color-light-yellow);
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid #FFE082;
+}
+
+.student-badge-info span {
+    color: var(--color-primary-dark);
+    font-weight: 700;
+}
+
+/* Main Content Area */
+.app-main {
+    flex: 1;
+    padding: var(--space-lg) var(--space-md);
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Page Display Management (SPA) */
+.page {
+    display: block;
+}
+
+.page.hidden {
+    display: none !important;
+}
+
+/* App Footer */
+.app-footer {
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: var(--space-md) var(--space-xl);
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+}
+
+/* Section Headings */
+h1, h2, h3, h4 {
+    color: var(--color-text-main);
+    font-weight: 700;
+}
+
+.section-title {
+    color: var(--color-primary-dark);
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: var(--space-xs);
+}
+
+/* Utility Classes */
+.text-center { text-align: center; }
+.hidden { display: none !important; }
