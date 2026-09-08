@@ -4,9 +4,7 @@
  * Handles:
  * - Selection of 1 Easy and 1 Medium DSA problem from candidate's selected topics
  * - Two-column problem description and code editor layout
- * - Lightweight textarea editor with Tab indentation support
- * - Clean separation with MockCodeRunner for Run and Submit operations
- * - Question-specific countdown timers (25 min for Easy, 30 min for Medium)
+ * - Real-time execution via ApiClient for Run and Submit operations
  * - Submission verification, state persistence, and completion flow
  */
 
@@ -173,52 +171,6 @@
         return shuffled;
     }
 
-    /**
-     * Generates 2 DSA questions: 1 Easy and 1 Medium STRICTLY from candidate's selected topics.
-     * Never falls back to unselected topics.
-     * @param {Array<string>} selectedTopicIds 
-     * @returns {Object} { success: boolean, questions?: Array, error?: string }
-     */
-    function selectDsaQuestions(selectedTopicIds) {
-        if (!Array.isArray(selectedTopicIds) || selectedTopicIds.length === 0) {
-            return {
-                success: false,
-                error: 'Unable to generate the DSA examination because no DSA topics were selected.'
-            };
-        }
-
-        const allQuestions = window.MockDsaQuestions ? window.MockDsaQuestions.getAllQuestions() : [];
-
-        // 1. Filter questions strictly belonging to the candidate's selected topics
-        const selectedTopicQuestions = allQuestions.filter(q => selectedTopicIds.includes(q.topicId));
-
-        // 2. Pick 1 Easy Problem strictly from selected topics
-        const easyPool = selectedTopicQuestions.filter(q => q.difficulty === 'easy');
-        if (!easyPool || easyPool.length === 0) {
-            return {
-                success: false,
-                error: 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.'
-            };
-        }
-        const shuffledEasy = shuffleArray(easyPool);
-        const easyQuestion = shuffledEasy[0];
-
-        // 3. Pick 1 Medium Problem strictly from selected topics (ensuring distinct question ID)
-        const mediumPool = selectedTopicQuestions.filter(q => q.difficulty === 'medium' && q.id !== easyQuestion.id);
-        if (!mediumPool || mediumPool.length === 0) {
-            return {
-                success: false,
-                error: 'Unable to generate the DSA examination because a required difficulty question is unavailable for the selected topics.'
-            };
-        }
-        const shuffledMedium = shuffleArray(mediumPool);
-        const mediumQuestion = shuffledMedium[0];
-
-        return {
-            success: true,
-            questions: [easyQuestion, mediumQuestion]
-        };
-    }
 
     /**
      * Starts the DSA Assessment session by fetching 2 assigned problems from backend
@@ -438,8 +390,11 @@
 
         // 6. Console initial message
         if (consoleOutputEl) {
+            const savedOutput = window.AppState ? window.AppState.getDsaRunOutput(q.id) : null;
             const submission = exam.submissions[q.id];
-            if (submission) {
+            if (savedOutput) {
+                consoleOutputEl.innerHTML = savedOutput;
+            } else if (submission) {
                 const subLang = submission.language ? ` [${submission.language.toUpperCase()}]` : '';
                 const verdict = submission.verdict || submission.rawStatus || 'Submitted';
                 const isAcc = (verdict.toUpperCase() === 'ACCEPTED');
@@ -571,6 +526,7 @@
         }
 
         window.AppState.setDsaCode(currentQ.id, currentLang, defaultCode);
+        window.AppState.setDsaRunOutput(currentQ.id, null);
 
         if (consoleOutputEl) {
             consoleOutputEl.innerHTML = `<span class="log-success">\u2714 ${currentLang.toUpperCase()} starter template restored successfully.</span>`;
@@ -642,8 +598,10 @@
 
                 logHtml += `\n<div class="log-summary">Sample Tests Passed: <strong>${passedCount} / ${runResult.testCases.length}</strong></div>`;
                 consoleOutputEl.innerHTML = logHtml;
+                window.AppState.setDsaRunOutput(currentQ.id, logHtml);
             } else {
                 consoleOutputEl.innerHTML = `<div class="log-info">No sample test cases returned from server.</div>`;
+                window.AppState.setDsaRunOutput(currentQ.id, consoleOutputEl.innerHTML);
             }
         } catch (err) {
             console.error('[DSA] Run failed:', err);
@@ -654,6 +612,7 @@
                         <pre class="error-pre">${escapeHtml(err.message || 'An error occurred during code execution.')}</pre>
                     </div>
                 `;
+                window.AppState.setDsaRunOutput(currentQ.id, consoleOutputEl.innerHTML);
             }
         } finally {
             if (btnRun) {
@@ -906,6 +865,42 @@
         window.AppState.completeDsaExam(dsaResults);
 
         try {
+            // Ensure every assigned DSA question has at least one server-side submission before completing.
+            // If a candidate skipped or timed out without submitting, auto-submit current/starter code.
+            if (exam.questions && exam.questions.length > 0) {
+                for (const q of exam.questions) {
+                    if (!exam.submissions || !exam.submissions[q.id]) {
+                        try {
+                            const currentLang = window.AppState.getDsaLanguage(q.id) || 'java';
+                            let codeToSubmit = window.AppState.getDsaCode(q.id, currentLang);
+                            if (!codeToSubmit && q.starterCode) {
+                                codeToSubmit = typeof q.starterCode === 'object' ? (q.starterCode[currentLang] || '') : q.starterCode;
+                            }
+                            if (!codeToSubmit) {
+                                codeToSubmit = '// Unsubmitted solution';
+                            }
+                            const subResult = await window.ApiClient.submitDsaCode({
+                                assessmentId: assessmentId,
+                                questionId: q.id,
+                                language: currentLang.toUpperCase(),
+                                sourceCode: codeToSubmit
+                            });
+                            window.AppState.recordDsaSubmission(q.id, {
+                                submissionId: subResult.submissionId,
+                                verdict: subResult.status === 'ACCEPTED' ? 'Accepted' : (subResult.status || 'Submitted'),
+                                rawStatus: subResult.status,
+                                testCasesPassed: subResult.passedTestCases || 0,
+                                totalTestCases: subResult.totalTestCases || 0,
+                                executionTimeMs: subResult.executionTimeMs || 0,
+                                language: currentLang
+                            });
+                        } catch (autoSubErr) {
+                            console.warn(`[DSA] Auto-submit fallback for problem ${q.id} failed:`, autoSubErr);
+                        }
+                    }
+                }
+            }
+
             // Complete Assessment on backend
             try {
                 await window.ApiClient.completeAssessment(assessmentId);
@@ -931,10 +926,10 @@
                 status: 'COMPLETED',
                 aptitudeScore: (window.AppState.getAptitudeResults() || {}).score || 0,
                 aptitudeTotal: 20,
-                dsaScore: acceptedCount * 10,
-                dsaTotal: 20,
-                totalScore: ((window.AppState.getAptitudeResults() || {}).score || 0) + (acceptedCount * 10),
-                totalMarks: 40
+                dsaScore: 0,
+                dsaTotal: 3,
+                totalScore: ((window.AppState.getAptitudeResults() || {}).score || 0),
+                totalMarks: 23
             };
             renderFinalSummaryOnPage6(fallbackResult);
             window.Navigation.navigateTo('page-result');
@@ -962,10 +957,10 @@
         const aptitudeTotal = (finalResult && typeof finalResult.aptitudeTotal === 'number') ? finalResult.aptitudeTotal : 20;
 
         const dsaScore = (finalResult && typeof finalResult.dsaScore === 'number') ? finalResult.dsaScore : 0;
-        const dsaTotal = (finalResult && typeof finalResult.dsaTotal === 'number') ? finalResult.dsaTotal : 20;
+        const dsaTotal = (finalResult && typeof finalResult.dsaTotal === 'number') ? finalResult.dsaTotal : 3;
 
         const totalScore = (finalResult && typeof finalResult.totalScore === 'number') ? finalResult.totalScore : (aptitudeScore + dsaScore);
-        const totalMarks = (finalResult && typeof finalResult.totalMarks === 'number') ? finalResult.totalMarks : (aptitudeTotal + dsaTotal);
+        const totalMarks = (finalResult && typeof finalResult.totalMarks === 'number') ? finalResult.totalMarks : 23;
 
         let dsaProblemsHtml = '';
         if (dsaExam && dsaExam.questions && dsaExam.questions.length > 0) {
@@ -976,16 +971,19 @@
                 const verdict = sub ? (sub.verdict || sub.rawStatus || 'Submitted') : (isSkipped ? 'Skipped' : 'Unanswered');
                 const passed = sub ? (sub.testCasesPassed ?? 0) : 0;
                 const totalCases = sub ? (sub.totalTestCases ?? 0) : 0;
+                const isEasy = (q.difficulty && q.difficulty.toLowerCase() === 'easy') || idx === 0;
+                const points = isEasy ? (isAcc ? '+1' : '+0') : (isAcc ? '+2' : '+0');
+                const diffLabel = isEasy ? 'Easy' : 'Medium';
 
                 dsaProblemsHtml += `
                     <div class="dsa-res-item ${isAcc ? 'res-acc' : 'res-fail'}">
                         <div>
-                            <strong>Problem ${idx + 1} (${q.difficulty ? q.difficulty.toUpperCase() : 'DSA'}): ${escapeHtml(q.title || '')}</strong>
-                            <div style="font-size: 0.8125rem; color: var(--color-text-muted);">
-                                Test Cases Passed: ${passed} / ${totalCases}
+                            <strong>DSA ${diffLabel}: ${isAcc ? 'Accepted' : 'Not Accepted'} (${points})</strong>
+                            <div style="font-size: 0.8125rem; color: var(--color-text-muted); margin-top: 2px;">
+                                Problem ${idx + 1}: ${escapeHtml(q.title || '')} &bull; Test Cases: ${passed} / ${totalCases}
                             </div>
                         </div>
-                        <div class="verdict-tag ${isAcc ? 'tag-accepted' : 'tag-wrong'}">${escapeHtml(verdict)}</div>
+                        <div class="verdict-tag ${isAcc ? 'tag-accepted' : 'tag-wrong'}">${escapeHtml(verdict)} (${points})</div>
                     </div>
                 `;
             });
@@ -1010,7 +1008,7 @@
                     <div style="font-size: 2.5rem; font-weight: 900; color: var(--color-primary-dark); line-height: 1.2; margin: 4px 0;">
                         ${totalScore} <span style="font-size: 1.25rem; font-weight: 600; color: var(--color-text-muted);">/ ${totalMarks}</span>
                     </div>
-                    <div style="font-size: 0.8125rem; color: var(--color-text-muted);">Official Server-Verified Score</div>
+                    <div style="font-size: 0.8125rem; color: var(--color-text-muted);">Authoritative Score: Aptitude (${aptitudeScore}/20) + DSA (${dsaScore}/3)</div>
                 </div>
 
                 <div class="summary-two-col">
@@ -1019,7 +1017,7 @@
                         <h3 class="res-sec-title">Aptitude Assessment</h3>
                         <div class="stat-card" style="margin-bottom: 1rem;">
                             <div class="stat-value">${aptitudeScore} / ${aptitudeTotal}</div>
-                            <div class="stat-label">Authoritative Score</div>
+                            <div class="stat-label">Authoritative Score (/20)</div>
                         </div>
                         ${aptResults ? `
                             <div class="stat-mini-row"><span>Attempted:</span> <strong>${aptResults.attempted || 0} / 20</strong></div>
@@ -1036,7 +1034,7 @@
                         <h3 class="res-sec-title">DSA Coding Assessment</h3>
                         <div class="stat-card" style="margin-bottom: 1rem;">
                             <div class="stat-value">${dsaScore} / ${dsaTotal}</div>
-                            <div class="stat-label">Authoritative Score</div>
+                            <div class="stat-label">Authoritative Score (/3)</div>
                         </div>
                         <div class="dsa-details-list">
                             ${dsaProblemsHtml || '<div style="color: var(--color-text-muted); font-size: 0.875rem;">No problem details available.</div>'}
@@ -1072,8 +1070,8 @@
     window.Dsa = {
         init: init,
         startExam: startExam,
-        selectDsaQuestions: selectDsaQuestions,
         renderProblem: renderProblem,
+        renderFinalSummaryOnPage6: renderFinalSummaryOnPage6,
         finishExam: finishExam
     };
 })();

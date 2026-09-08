@@ -40,6 +40,11 @@
 
             // Update header student info display
             this.updateHeaderInfo();
+
+            // Track active page in application state for refresh resilience
+            if (window.AppState && typeof window.AppState.setActivePage === 'function') {
+                window.AppState.setActivePage(targetPageId);
+            }
         },
 
         /**

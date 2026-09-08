@@ -100,65 +100,7 @@
         return shuffled;
     }
 
-    /**
-     * Generates a 20-question examination distributed evenly across selected topics
-     * @param {Array<string>} selectedTopicIds 
-     * @returns {Object} { success: boolean, questions?: Array, error?: string }
-     */
-    function generateAptitudeExam(selectedTopicIds) {
-        if (!Array.isArray(selectedTopicIds) || selectedTopicIds.length === 0) {
-            return {
-                success: false,
-                error: 'No Aptitude topics selected. Please select at least one topic.'
-            };
-        }
 
-        const totalRequired = 20;
-        const numTopics = selectedTopicIds.length;
-        const base = Math.floor(totalRequired / numTopics);
-        const remainder = totalRequired % numTopics;
-
-        const selectedQuestions = [];
-
-        // Distribute questions evenly
-        for (let i = 0; i < numTopics; i++) {
-            const topicId = selectedTopicIds[i];
-            const requiredCount = base + (i < remainder ? 1 : 0);
-
-            if (requiredCount <= 0) continue;
-
-            const availableQuestions = window.MockQuestions ? window.MockQuestions.getQuestionsByTopic(topicId) : [];
-
-            if (!availableQuestions || availableQuestions.length < requiredCount) {
-                return {
-                    success: false,
-                    error: `Unable to generate the examination because there are not enough questions available for selected topic: "${topicId}".`
-                };
-            }
-
-            // Shuffle available questions for this topic and pick required amount
-            const shuffledTopicQuestions = shuffleArray(availableQuestions);
-            const picked = shuffledTopicQuestions.slice(0, requiredCount);
-
-            selectedQuestions.push(...picked);
-        }
-
-        // Final verification: exactly 20 questions
-        if (selectedQuestions.length !== totalRequired) {
-            return {
-                success: false,
-                error: `Expected ${totalRequired} questions but generated ${selectedQuestions.length}.`
-            };
-        }
-
-        // Final shuffle of the combined 20 questions
-        const finalShuffledQuestions = shuffleArray(selectedQuestions);
-
-        return {
-            success: true,
-            questions: finalShuffledQuestions
-        };
-    }
 
     /**
      * Starts the Aptitude Examination session by fetching authoritative questions from backend
@@ -631,7 +573,6 @@
     window.Aptitude = {
         init: init,
         startExam: startExam,
-        generateAptitudeExam: generateAptitudeExam,
         shuffleArray: shuffleArray,
         finishExam: finishExam
     };

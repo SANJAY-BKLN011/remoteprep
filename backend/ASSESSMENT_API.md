@@ -27,9 +27,9 @@ Student
    ↓
 Start Assessment (`POST /api/students/start`)
    ↓
-Generate Aptitude Exam (`POST /api/aptitude/generateExam`)
+Generate Aptitude Exam (`POST /api/aptitude/exam`)
    ↓
-Submit Aptitude Answers (`POST /api/aptitude/submitAnswers`)
+Submit Aptitude Answers (`POST /api/aptitude/submit`)
    ↓
 Generate DSA Exam (`POST /api/dsa/exam`)
    ↓
@@ -84,8 +84,8 @@ $$\text{Total Score} = \text{Aptitude Score} + \text{DSA Score}$$
 
 ## Immutability Rules
 Once an assessment is `COMPLETED`:
-- `POST /api/aptitude/generateExam` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
-- `POST /api/aptitude/submitAnswers` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
+- `POST /api/aptitude/exam` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
+- `POST /api/aptitude/submit` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
 - `POST /api/dsa/exam` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
 - `POST /api/dsa/run` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)
 - `POST /api/dsa/submit` $\rightarrow$ Rejected (`409 Conflict` / `400 Bad Request`)

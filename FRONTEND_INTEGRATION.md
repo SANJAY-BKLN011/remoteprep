@@ -89,7 +89,7 @@ The application adheres strictly to the offline computer laboratory constraints:
 
 6. **Page 6: Final Results (`dsa.js`, `page-result`)**
    - Calls `ApiClient.completeAssessment()` and `ApiClient.getAssessmentResult()`.
-   - Displays candidate details, status (`COMPLETED`), authoritative Aptitude score (`/20`), DSA score (`/20`), and Total Overall Score (`/40`).
+   - Displays candidate details, status (`COMPLETED`), authoritative Aptitude score (`/20`), DSA score (`/3`), and Total Overall Score (`/23`).
 
 ---
 

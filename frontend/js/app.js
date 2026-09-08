@@ -37,7 +37,58 @@
         if (window.Dsa && typeof window.Dsa.init === 'function') {
             window.Dsa.init();
         }
-        // Start on Page 1 (Student Details)
+
+        // Restore active session on reload or start fresh
+        restoreSessionOrStart();
+    }
+
+    /**
+     * Resumes an existing active assessment session across page reloads
+     */
+    function restoreSessionOrStart() {
+        const hasSession = window.AppState && typeof window.AppState.loadFromSession === 'function' && window.AppState.loadFromSession();
+        if (hasSession) {
+            const student = window.AppState.getStudent();
+            if (student && student.name && nameInput) {
+                nameInput.value = student.name;
+            }
+            if (student && student.rollNumber && rollInput) {
+                rollInput.value = student.rollNumber;
+            }
+
+            const activePage = window.AppState.getActivePage();
+            const finalResult = window.AppState.getFinalResult();
+            const dsaExam = window.AppState.getDsaExam();
+            const aptExam = window.AppState.getAptitudeExam();
+
+            if (finalResult || activePage === 'page-result') {
+                if (window.Dsa && typeof window.Dsa.renderFinalSummaryOnPage6 === 'function') {
+                    window.Dsa.renderFinalSummaryOnPage6(finalResult);
+                }
+                window.Navigation.navigateTo('page-result');
+                return;
+            } else if (activePage === 'page-dsa' && dsaExam && dsaExam.questions && dsaExam.questions.length > 0) {
+                window.Navigation.navigateTo('page-dsa');
+                if (window.Dsa && typeof window.Dsa.renderProblem === 'function') {
+                    window.Dsa.renderProblem(dsaExam.currentIndex || 0);
+                }
+                return;
+            } else if (activePage === 'page-aptitude' && aptExam && aptExam.questions && aptExam.questions.length > 0) {
+                window.Navigation.navigateTo('page-aptitude');
+                if (window.Aptitude && typeof window.Aptitude.renderCurrentQuestion === 'function') {
+                    window.Aptitude.renderCurrentQuestion();
+                }
+                return;
+            } else if (activePage === 'page-instructions') {
+                window.Navigation.navigateTo('page-instructions');
+                return;
+            } else if (activePage === 'page-topics') {
+                window.Navigation.navigateTo('page-topics');
+                return;
+            }
+        }
+
+        // Default start on Page 1 (Student Details)
         window.Navigation.navigateTo('page-student');
     }
 
@@ -70,6 +121,16 @@
         if (rollInput) {
             rollInput.addEventListener('input', () => clearFieldError(rollInput, rollError));
         }
+
+        // Warning when leaving or refreshing during active exam
+        window.addEventListener('beforeunload', function (e) {
+            const activePage = window.AppState ? window.AppState.getActivePage() : '';
+            if (activePage === 'page-aptitude' || activePage === 'page-dsa') {
+                e.preventDefault();
+                e.returnValue = 'An assessment is currently in progress. Refreshing or leaving the page may disrupt your exam session.';
+                return e.returnValue;
+            }
+        });
     }
 
     /**
@@ -92,6 +153,16 @@
 
         // 2. Clear any lingering errors
         resetErrors();
+
+        // Prevent accidental duplicate assessment creation if active session exists for same student
+        const existingStudent = window.AppState ? window.AppState.getStudent() : null;
+        if (existingStudent && existingStudent.assessmentId &&
+            existingStudent.rollNumber.toUpperCase() === rollValue.toUpperCase() &&
+            existingStudent.name.toUpperCase() === nameValue.toUpperCase() &&
+            existingStudent.status === 'IN_PROGRESS') {
+            window.Navigation.navigateTo('page-topics');
+            return;
+        }
 
         // Prevent double submission and provide visual feedback
         if (btnContinue) {

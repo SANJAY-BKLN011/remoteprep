@@ -9,8 +9,11 @@
  */
 
 (function () {
+    const SESSION_KEY = 'remoteprep_session_state';
+
     // Initial / Clean Default State
     const initialState = {
+        activePage: 'page-student',
         student: {
             name: '',
             rollNumber: '',
@@ -38,6 +41,7 @@
             currentIndex: 0,        // 0 for Easy (Problem 1), 1 for Medium (Problem 2)
             selectedLanguage: {},   // questionId -> 'java' | 'cpp' | 'c' | 'python'
             code: {},               // questionId -> { java: '...', cpp: '...', c: '...', python: '...' }
+            runOutput: {},          // questionId -> run output data
             submissions: {},        // questionId -> { verdict, testCasesPassed, totalTestCases, details, timestamp, language }
             skipped: [],            // Array of skipped questionIds
             timeRemaining: {
@@ -64,6 +68,26 @@
     // Active mutable state
     let state = deepClone(initialState);
 
+    function saveSession() {
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+            }
+        } catch (e) {
+            console.warn('[AppState] Failed to save state to sessionStorage:', e);
+        }
+    }
+
+    function clearSession() {
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.removeItem(SESSION_KEY);
+            }
+        } catch (e) {
+            console.warn('[AppState] Failed to clear sessionStorage:', e);
+        }
+    }
+
     // State Accessor and Mutator API
     const AppState = {
         /**
@@ -79,6 +103,7 @@
         setStudent: function (name, rollNumber) {
             state.student.name = (name || '').trim();
             state.student.rollNumber = (rollNumber || '').trim().toUpperCase();
+            saveSession();
         },
 
         /**
@@ -90,6 +115,7 @@
             if (details.studentId !== undefined) state.student.studentId = details.studentId;
             if (details.assessmentId !== undefined) state.student.assessmentId = details.assessmentId;
             if (details.status !== undefined) state.student.status = details.status;
+            saveSession();
         },
 
         /**
@@ -118,6 +144,7 @@
          */
         setFinalResult: function (result) {
             state.results.finalResult = result ? { ...result } : null;
+            saveSession();
         },
 
         /**
@@ -133,6 +160,7 @@
         setSelectedTopics: function (aptitudeTopics, dsaTopics) {
             state.selectedTopics.aptitude = [...aptitudeTopics];
             state.selectedTopics.dsa = [...dsaTopics];
+            saveSession();
         },
 
         /**
@@ -147,6 +175,7 @@
          */
         setInstructionsAccepted: function (accepted) {
             state.instructionsAccepted = Boolean(accepted);
+            saveSession();
         },
 
         // ==========================================
@@ -165,6 +194,7 @@
             state.aptitudeExam.endTime = null;
             state.aptitudeExam.timeRemaining = 1800; // 30 minutes
             state.aptitudeExam.isCompleted = false;
+            saveSession();
         },
 
         /**
@@ -173,6 +203,7 @@
         setAptitudeAnswer: function (questionId, optionIndex) {
             state.aptitudeExam.answers[questionId] = optionIndex;
             state.aptitudeExam.skipped = state.aptitudeExam.skipped.filter(id => id !== questionId);
+            saveSession();
         },
 
         /**
@@ -185,6 +216,7 @@
             if (!state.aptitudeExam.skipped.includes(questionId)) {
                 state.aptitudeExam.skipped.push(questionId);
             }
+            saveSession();
         },
 
         /**
@@ -193,6 +225,7 @@
         setAptitudeCurrentIndex: function (index) {
             if (index >= 0 && index < state.aptitudeExam.questions.length) {
                 state.aptitudeExam.currentIndex = index;
+                saveSession();
             }
         },
 
@@ -210,6 +243,7 @@
             state.aptitudeExam.isCompleted = true;
             state.aptitudeExam.endTime = new Date().toISOString();
             state.results.aptitude = { ...results };
+            saveSession();
         },
 
         /**
@@ -238,6 +272,7 @@
             state.dsaExam.currentIndex = 0;
             state.dsaExam.selectedLanguage = {};
             state.dsaExam.code = {};
+            state.dsaExam.runOutput = {};
             state.dsaExam.submissions = {};
             state.dsaExam.skipped = [];
             state.dsaExam.timeRemaining = {
@@ -264,6 +299,7 @@
                     }
                 });
             });
+            saveSession();
         },
 
         /**
@@ -281,6 +317,7 @@
                 state.dsaExam.selectedLanguage = {};
             }
             state.dsaExam.selectedLanguage[questionId] = language || 'java';
+            saveSession();
         },
 
         /**
@@ -302,6 +339,7 @@
                     state.dsaExam.code[questionId][currentLang] = langOrCode;
                 }
             }
+            saveSession();
         },
 
         /**
@@ -325,6 +363,7 @@
         setDsaCurrentIndex: function (index) {
             if (index === 0 || index === 1) {
                 state.dsaExam.currentIndex = index;
+                saveSession();
             }
         },
 
@@ -334,6 +373,7 @@
         skipDsaQuestion: function (questionId) {
             if (!state.dsaExam.skipped.includes(questionId)) {
                 state.dsaExam.skipped.push(questionId);
+                saveSession();
             }
         },
 
@@ -346,6 +386,25 @@
                 timestamp: new Date().toISOString()
             };
             state.dsaExam.skipped = state.dsaExam.skipped.filter(id => id !== questionId);
+            saveSession();
+        },
+
+        /**
+         * Store execution output for a DSA problem run
+         */
+        setDsaRunOutput: function (questionId, outputData) {
+            if (!state.dsaExam.runOutput) {
+                state.dsaExam.runOutput = {};
+            }
+            state.dsaExam.runOutput[questionId] = outputData;
+            saveSession();
+        },
+
+        /**
+         * Retrieve cached execution output for a DSA problem
+         */
+        getDsaRunOutput: function (questionId) {
+            return (state.dsaExam.runOutput && state.dsaExam.runOutput[questionId]) || null;
         },
 
         /**
@@ -364,6 +423,7 @@
             state.dsaExam.isCompleted = true;
             state.dsaExam.endTime = new Date().toISOString();
             state.results.dsa = { ...results };
+            saveSession();
         },
 
         /**
@@ -381,10 +441,62 @@
         },
 
         /**
+         * Track active page identifier
+         */
+        setActivePage: function (pageId) {
+            state.activePage = pageId || 'page-student';
+            saveSession();
+        },
+
+        /**
+         * Retrieve active page identifier
+         */
+        getActivePage: function () {
+            return state.activePage || 'page-student';
+        },
+
+        /**
+         * Explicitly trigger session save
+         */
+        saveToSession: function () {
+            saveSession();
+        },
+
+        /**
+         * Restore state from sessionStorage if available
+         * @returns {boolean} true if restored, false otherwise
+         */
+        loadFromSession: function () {
+            try {
+                if (typeof window !== 'undefined' && window.sessionStorage) {
+                    const raw = window.sessionStorage.getItem(SESSION_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && typeof parsed === 'object' && parsed.student && parsed.student.assessmentId) {
+                            state = Object.assign(deepClone(initialState), parsed);
+                            return true;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[AppState] Failed to load state from sessionStorage:', e);
+            }
+            return false;
+        },
+
+        /**
+         * Clear sessionStorage
+         */
+        clearSession: function () {
+            clearSession();
+        },
+
+        /**
          * Reset state completely to default initial state (for next student)
          */
         resetState: function () {
             state = deepClone(initialState);
+            clearSession();
         }
     };
 
