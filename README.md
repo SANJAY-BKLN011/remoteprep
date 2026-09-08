@@ -91,9 +91,26 @@ RemotePrep MSI
 
 ## Running the Application
 
-### Option A: Standalone Packaged JAR (Production)
+### 1. Windows Production Launcher (Recommended for Windows)
+The production launcher handles pre-flight checks, starts the application, monitors readiness, and automatically opens your browser.
+
+```cmd
+scripts\start-remoteprep.bat
+```
+
+- **Readiness Polling**: Dynamically polls `http://127.0.0.1:8080/api/test` every second with attempt logging.
+- **Auto-Browser Launch**: Automatically opens `http://127.0.0.1:8080/` upon successful startup.
+- **Log Location**: Logs are written to `%LOCALAPPDATA%\RemotePrep\logs\remoteprep.log`.
+- **Graceful Shutdown**: Close the launcher console window, press `Ctrl+C`, or execute:
+  ```cmd
+  scripts\stop-remoteprep.bat
+  ```
+
+### 2. Standalone Packaged JAR (Production)
+Run the self-contained Spring Boot fat JAR directly without the launcher:
+
 ```powershell
-# 1. Package the application (bundles frontend into JAR)
+# 1. Package application (bundles frontend into JAR)
 cd backend
 mvn clean package -DskipTests
 
@@ -101,15 +118,37 @@ mvn clean package -DskipTests
 java -DDB_PASSWORD=YOUR_MYSQL_PASSWORD -jar target/backend-0.0.1-SNAPSHOT.jar
 
 # 3. Access in browser
-# http://localhost:8080/
+# http://127.0.0.1:8080/
 ```
 
-### Option B: Using Windows Startup Script
-```cmd
-scripts\start-remoteprep.bat
+### 3. Local Development Mode
+Run Spring Boot with live development reload from source:
+
+```powershell
+cd backend
+mvn spring-boot:run -Dspring-boot.run.arguments="--DB_PASSWORD=YOUR_MYSQL_PASSWORD"
 ```
 
-### Running Backend Tests
+---
+
+## Prerequisites & Environment Requirements
+
+> [!IMPORTANT]
+> The following tools are **currently required** to be installed on the host operating system:
+> - **Java Runtime**: Java 17 LTS or later (`java` must be on system `PATH` or in `%JAVA_HOME%`).
+> - **MySQL Database**: MySQL 8.x running locally on port `3306` with `remoteprep` schema initialized.
+> - **DSA Execution Compilers**:
+>   - Java: `javac` and `java` (from JDK)
+>   - Python: `python` (Python 3.x)
+>   - C: `gcc` (MinGW-w64 or GCC)
+>   - C++: `g++` (MinGW-w64 or G++)
+> 
+> *Note: Java, MySQL, Python, and GCC are **NOT** bundled into the repository. The native MSI installer is not available yet; the Windows production launcher provides the architectural foundation for the future single-click MSI deployment.*
+
+---
+
+## Running Backend Tests
+
 ```powershell
 cd backend
 mvn clean test -DDB_PASSWORD=YOUR_MYSQL_PASSWORD

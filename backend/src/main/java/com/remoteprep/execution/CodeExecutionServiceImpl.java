@@ -93,25 +93,39 @@ public class CodeExecutionServiceImpl implements CodeExecutionService {
     }
 
     private void deleteWorkspaceSafely(Path workspace, String executionId) {
-        try {
-            if (Files.exists(workspace)) {
-                Files.walkFileTree(workspace, new SimpleFileVisitor<>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                        Files.deleteIfExists(file);
-                        return FileVisitResult.CONTINUE;
-                    }
+        int maxRetries = 5;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                if (Files.exists(workspace)) {
+                    Files.walkFileTree(workspace, new SimpleFileVisitor<>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                            Files.deleteIfExists(file);
+                            return FileVisitResult.CONTINUE;
+                        }
 
-                    @Override
-                    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                        Files.deleteIfExists(dir);
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
-                log.debug("Cleaned up workspace for execution id={}", executionId);
+                        @Override
+                        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                            Files.deleteIfExists(dir);
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                }
+                if (!Files.exists(workspace)) {
+                    log.debug("Cleaned up workspace for execution id={}", executionId);
+                    return;
+                }
+            } catch (Exception e) {
+                if (attempt == maxRetries) {
+                    log.warn("Failed to delete workspace {} for id={}: {}", workspace, executionId, e.getMessage());
+                }
             }
-        } catch (Exception e) {
-            log.warn("Failed to delete workspace {} for id={}: {}", workspace, executionId, e.getMessage());
+            try {
+                Thread.sleep(50L * attempt);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 }
